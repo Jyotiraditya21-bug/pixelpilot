@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>PixelPilot — {{ run.story }}</title>
+  <style>
+    :root { color-scheme: dark; --panel:#182230; --muted:#98a2b3; --accent:#7f56d9; }
+    body { margin:0; font:15px system-ui; color:#f2f4f7; background:#0c111d; }
+    main { max-width:1100px; padding:32px; margin:auto; }
+    header,.step { background:var(--panel); border:1px solid #344054; border-radius:14px; padding:20px; margin-bottom:18px; }
+    .pass { color:#75e0a7 }.fail { color:#fda29b }.meta { color:var(--muted) }
+    .badge { display:inline-block; padding:3px 9px; border-radius:99px; background:#3538cd; margin-right:6px; }
+    .heal { background:#b54708 }.shot { position:relative; display:inline-block; max-width:100%; margin-top:12px; }
+    img { display:block; max-width:100%; border-radius:8px; }
+    .bbox { position:absolute; border:3px solid #f04438; box-shadow:0 0 0 2px #fff8; pointer-events:none; }
+    code { overflow-wrap:anywhere } h2 { margin-top:0 }
+  </style>
+</head>
+<body><main>
+  <header>
+    <h1>{{ run.story }}</h1>
+    <h2 class="{{ 'pass' if run.passed else 'fail' }}">{{ 'PASS' if run.passed else 'FAIL' }}</h2>
+    <p><strong>Evidence:</strong> {{ run.evidence }}</p>
+    <p class="meta">Run {{ run.run_id }} · Trace <code>{{ run.trace_id or 'not exported' }}</code></p>
+  </header>
+  {% for item in steps %}
+  {% set step = item.record %}
+  <section class="step">
+    <h2>Step {{ step.number }} — {{ step.intent }}</h2>
+    <span class="badge">{{ item.tier }}</span>
+    {% if step.healed %}<span class="badge heal">healed cache hit</span>{% endif %}
+    <span class="{{ 'pass' if step.success else 'fail' }}">{{ 'passed' if step.success else 'failed' }}</span>
+    <p class="meta">confidence {{ '%.2f'|format(step.confidence) }} · {{ step.detail }}</p>
+    {% if item.image %}
+    <div class="shot"><img src="{{ item.image }}" alt="Screenshot for step {{ step.number }}">
+      {% if item.overlay %}<div class="bbox" style="left:{{ item.overlay.x }}px;top:{{ item.overlay.y }}px;width:{{ item.overlay.width }}px;height:{{ item.overlay.height }}px"></div>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+  {% endfor %}
+</main></body></html>

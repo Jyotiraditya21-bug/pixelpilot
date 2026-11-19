@@ -14,7 +14,9 @@ build-backend = "hatchling.build"
 packages = ["src/pixelpilot"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 markers = ["vlm: needs real Ollama"]
+pythonpath = ["."]
 testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
