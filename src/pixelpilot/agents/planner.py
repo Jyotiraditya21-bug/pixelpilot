@@ -3,10 +3,15 @@ from __future__ import annotations
 import re
 from urllib.parse import urlsplit, urlunsplit
 
+import httpx
+from pydantic import ValidationError
+
 from pixelpilot.models import ActionKind, ActionRequest, Plan, PlanStep
+from pixelpilot.vision.gemini_client import GeminiClient
+from pixelpilot.vision.prompts import planner_prompt
 
 
-class Planner:
+class GrammarPlanner:
     def plan(self, story_text: str, base_url: str) -> Plan:
         title = _first_heading(story_text)
         expectation = _success_text(story_text)
@@ -18,6 +23,80 @@ class Planner:
                     kind=ActionKind.NAVIGATE,
                     intent="open the cart",
                     value=_path_url(base_url, "/cart"),
+                )
+            )
+        elif "scroll" in lower:
+            steps.extend(
+                (
+                    ActionRequest(
+                        kind=ActionKind.NAVIGATE,
+                        intent="open the scroll fixture",
+                        value=_path_url(base_url, "/scroll"),
+                    ),
+                    ActionRequest(
+                        kind=ActionKind.CLICK,
+                        intent="confirm bottom action",
+                        role="button",
+                        name="Confirm bottom action",
+                        text="Confirm bottom action",
+                    ),
+                )
+            )
+        elif "modal" in lower:
+            steps.extend(
+                (
+                    ActionRequest(
+                        kind=ActionKind.NAVIGATE,
+                        intent="open the modal fixture",
+                        value=_path_url(base_url, "/modal"),
+                    ),
+                    ActionRequest(
+                        kind=ActionKind.CLICK,
+                        intent="accept cookies",
+                        role="button",
+                        name="Accept cookies",
+                        text="Accept cookies",
+                    ),
+                    ActionRequest(
+                        kind=ActionKind.CLICK,
+                        intent="claim special deal",
+                        role="button",
+                        name="Claim special deal",
+                        text="Claim special deal",
+                    ),
+                )
+            )
+        elif "ambiguous" in lower:
+            steps.extend(
+                (
+                    ActionRequest(
+                        kind=ActionKind.NAVIGATE,
+                        intent="open the ambiguous fixture",
+                        value=_path_url(base_url, "/ambiguous"),
+                    ),
+                    ActionRequest(
+                        kind=ActionKind.CLICK,
+                        intent="add Target Widget to cart",
+                        role="button",
+                        name="Add",
+                        text="Add",
+                    ),
+                )
+            )
+        elif "icon" in lower:
+            steps.extend(
+                (
+                    ActionRequest(
+                        kind=ActionKind.NAVIGATE,
+                        intent="open the icons fixture",
+                        value=_path_url(base_url, "/icons"),
+                    ),
+                    ActionRequest(
+                        kind=ActionKind.CLICK,
+                        intent="click cart icon",
+                        role="button",
+                        text="🛒",
+                    ),
                 )
             )
         else:
@@ -64,6 +143,37 @@ class Planner:
             PlanStep(number=index, action=action) for index, action in enumerate(steps, 1)
         )
         return Plan(story=title, expectation=expectation, steps=numbered)
+
+
+class ModelPlanner:
+    def __init__(
+        self,
+        client: GeminiClient | None = None,
+        grammar_planner: GrammarPlanner | None = None,
+        max_retries: int = 2,
+    ):
+        self.client = client
+        self.grammar_planner = grammar_planner or GrammarPlanner()
+        self.max_retries = max_retries
+
+    async def plan(self, story_text: str, base_url: str) -> Plan:
+        if self.client is not None:
+            prompt = planner_prompt(story_text, base_url)
+            for attempt in range(self.max_retries + 1):
+                try:
+                    result = await self.client.complete_text(prompt, Plan)
+                    if result.story and result.steps:
+                        return result
+                except (ValueError, httpx.HTTPError, ValidationError):
+                    if attempt == self.max_retries:
+                        break
+        return self.grammar_planner.plan(story_text, base_url)
+
+    def plan_sync(self, story_text: str, base_url: str) -> Plan:
+        return self.grammar_planner.plan(story_text, base_url)
+
+
+Planner = ModelPlanner
 
 
 def _first_heading(text: str) -> str:

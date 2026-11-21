@@ -32,7 +32,8 @@ def run(
             story, url, mutate=mutate, headless=not headed, runs_dir=settings.runs_dir
         )
     )
-    typer.echo(f"{'PASS' if result.passed else 'FAIL'} {result.run_id}: {result.evidence}")
+    evidence = " ".join(result.evidence.split())
+    typer.echo(f"{'PASS' if result.passed else 'FAIL'} {result.run_id}: {evidence}")
     raise typer.Exit(code=0 if result.passed else 1)
 
 

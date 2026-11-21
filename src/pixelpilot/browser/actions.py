@@ -66,11 +66,9 @@ def encode_cached_locator(action: ActionRequest) -> str | None:
 
 
 def _resolve_cached_locator(page: Page, locator: str) -> object:
-    if not locator.startswith("semantic:"):
+    payload = decode_cached_locator(locator)
+    if payload is None:
         return page.locator(locator).first
-    payload = json.loads(locator.removeprefix("semantic:"))
-    if not isinstance(payload, dict):
-        raise ValueError("invalid cached semantic locator")
     role = payload.get("role")
     name = payload.get("name")
     text = payload.get("text")
@@ -79,6 +77,17 @@ def _resolve_cached_locator(page: Page, locator: str) -> object:
     if isinstance(text, str):
         return page.get_by_text(text, exact=False).first
     raise ValueError("cached semantic locator has no target")
+
+
+def decode_cached_locator(locator: str) -> dict[str, str] | None:
+    if not locator.startswith("semantic:"):
+        return None
+    raw = json.loads(locator.removeprefix("semantic:"))
+    if not isinstance(raw, dict) or not all(
+        isinstance(key, str) and isinstance(value, str) for key, value in raw.items()
+    ):
+        raise ValueError("invalid cached semantic locator")
+    return cast(dict[str, str], raw)
 
 
 async def _coordinate_click(page: Page, x: float, y: float) -> None:

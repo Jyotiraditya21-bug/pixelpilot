@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 import uuid
 from pathlib import Path
@@ -14,11 +15,16 @@ from pixelpilot.agents.grounder import Grounder
 from pixelpilot.agents.observer import Observer
 from pixelpilot.agents.planner import Planner
 from pixelpilot.agents.verifier import Verifier
-from pixelpilot.browser.actions import encode_cached_locator, perform_action
+from pixelpilot.browser.actions import (
+    decode_cached_locator,
+    encode_cached_locator,
+    perform_action,
+)
 from pixelpilot.browser.session import BrowserSession
 from pixelpilot.config import settings
 from pixelpilot.healing.cache import HealingCache
 from pixelpilot.healing.fingerprint import fingerprint_element
+from pixelpilot.healing.strategies import fingerprint_similarity
 from pixelpilot.models import (
     ActionKind,
     ActionRequest,
@@ -53,9 +59,9 @@ class Orchestrator:
         vlm_only: bool = False,
         vlm_preferred: bool = False,
     ):
-        self.planner = planner or Planner()
         self.observer = observer or Observer()
         self.vision = GeminiClient(settings.gemini_api_key.get_secret_value(), settings.vlm_model)
+        self.planner = planner or Planner(client=self.vision)
         self.healing_cache = healing_cache or HealingCache()
         self.grounder = grounder or Grounder(
             cached_locator=self._cached_locator,
@@ -78,7 +84,8 @@ class Orchestrator:
     ) -> RunRecord:
         run_id = uuid.uuid4().hex[:12]
         url = _with_mutation(base_url, mutate)
-        plan = self.planner.plan(story_path.read_text(), url)
+        plan_res = self.planner.plan(story_path.read_text(), url)
+        plan = await plan_res if inspect.isawaitable(plan_res) else plan_res
         if len(plan.steps) > MAX_STEPS:
             raise ValueError(f"plan exceeds MAX_STEPS={MAX_STEPS}")
         records: list[StepRecord] = []
@@ -95,11 +102,12 @@ class Orchestrator:
                 with self.tracer.start_as_current_span("agent.verifier") as verify_span:
                     try:
                         final_observation = await self.observer.observe(session, len(records) + 1)
-                        verification = await self.verifier.verify(
-                            plan.expectation, final_observation
+                        verification = await asyncio.wait_for(
+                            self.verifier.verify(plan.expectation, final_observation),
+                            STEP_TIMEOUT_SECONDS,
                         )
                         add_screenshot_event(verify_span, str(final_observation.screenshot.path))
-                    except (PlaywrightError, httpx.HTTPError, ValueError) as exc:
+                    except (PlaywrightError, httpx.HTTPError, ValueError, TimeoutError) as exc:
                         verification = VerificationResult(
                             passed=False,
                             evidence=f"visual verification unavailable: {_error_detail(exc)}",
@@ -139,14 +147,10 @@ class Orchestrator:
             step_span.set_attribute("pass", record.success)
             if record.screenshot:
                 add_screenshot_event(step_span, str(record.screenshot))
-            line = (
+            print(
                 f"step={number} tier={record.tier or 'direct'} "
-                f"pass={str(record.success).lower()} ms={elapsed_ms:.1f} "
-                f"bbox={_bbox_text(record.bbox)} http={record.http_status or '-'}"
+                f"pass={str(record.success).lower()} ms={elapsed_ms:.1f}"
             )
-            if not record.success:
-                line += f" exception={record.detail}"
-            print(line)
             return record
 
     async def _attempt_step(
@@ -195,7 +199,9 @@ class Orchestrator:
                         bbox=grounded.action.bbox,
                     )
                 last_detail = result.detail
-            except (TimeoutError, LookupError, httpx.HTTPError, ValueError) as exc:
+                last_tier = grounded.tier
+                last_http_status = grounded.http_status
+            except (TimeoutError, LookupError, httpx.HTTPError, ValueError, PlaywrightError) as exc:
                 last_detail = _error_detail(exc)
                 if action.kind != ActionKind.NAVIGATE:
                     last_tier = GroundingTier.VLM
@@ -218,7 +224,22 @@ class Orchestrator:
             raise TypeError("cache lookup requires an Observation")
         site = urlsplit(observation.page.url).netloc
         entry = self.healing_cache.get(site, intent)
-        return entry.locator if entry else None
+        if entry is None:
+            return None
+        element = _element_for_cached_locator(entry.locator, observation.page.elements)
+        if element is None:
+            self.healing_cache.delete(site, intent)
+            return None
+        current = fingerprint_element(
+            observation.screenshot.path.read_bytes(),
+            element,
+            observation.page.viewport_width,
+            observation.page.viewport_height,
+        )
+        if fingerprint_similarity(entry.fingerprint, current) < 0.72:
+            self.healing_cache.delete(site, intent)
+            return None
+        return entry.locator
 
     def _enroll_vlm_target(
         self, action: ActionRequest, observation: object, bbox: BBox | None
@@ -289,12 +310,23 @@ def _target_element(elements: tuple[ElementSnapshot, ...], bbox: BBox) -> Elemen
     )
 
 
+def _element_for_cached_locator(
+    locator: str, elements: tuple[ElementSnapshot, ...]
+) -> ElementSnapshot | None:
+    payload = decode_cached_locator(locator)
+    if payload is None:
+        return None
+    role = payload.get("role")
+    name = payload.get("name", "").casefold()
+    text = payload.get("text", "").casefold()
+    for element in elements:
+        if role and name and element.role == role and name in element.name.casefold():
+            return element
+        if text and text in element.text.casefold():
+            return element
+    return None
+
+
 def _error_detail(exc: BaseException) -> str:
     message = str(exc).strip() or repr(exc)
     return f"{type(exc).__name__}: {message}"
-
-
-def _bbox_text(bbox: BBox | None) -> str:
-    if bbox is None:
-        return "-"
-    return f"[{bbox.x:.1f},{bbox.y:.1f},{bbox.width:.1f},{bbox.height:.1f}]"

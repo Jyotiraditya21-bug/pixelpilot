@@ -174,3 +174,164 @@ async def place_order(request: Request, cart_id: str | None = Cookie(None)) -> H
     CARTS[identity] = {}
     body = f"<p>Order confirmed.</p><p>Discount: ${discount:.2f}</p><p><strong>Total paid: ${total:.2f}</strong></p>"
     return HTMLResponse(_page("Confirmation", body, mutate=mutate, color=color))
+
+
+@app.get("/scroll", response_class=HTMLResponse)
+@app.post("/scroll", response_class=HTMLResponse)
+async def scroll_page(request: Request, mutate: bool = False) -> HTMLResponse:
+    _, button_class, color = _mutation(mutate)
+    spacer_height = random.choice((1300, 1500, 1700)) if mutate else 1400
+    if request.method == "POST":
+        body = (
+            '<div class="notice"><p>Scroll target reached and confirmed.</p></div>'
+            f'<a class="button" href="/scroll?mutate={int(mutate)}">Reset</a>'
+        )
+    else:
+        btn_id = secrets.token_hex(4) if mutate else "scroll-target-btn"
+        body = (
+            "<p>Scroll down to reach the bottom confirmation action.</p>"
+            f'<div style="height:{spacer_height}px;background:repeating-linear-gradient(45deg,#fafafa,#fafafa 20px,#f0f0f0 20px,#f0f0f0 40px);margin:20px 0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#888;">'
+            "<span>[Long scrollable content area]</span></div>"
+            '<form action="/scroll" method="post">'
+            f'<input type="hidden" name="mutate" value="{int(mutate)}">'
+            f'<button id="{btn_id}" class="{button_class}" type="submit">Confirm bottom action</button>'
+            "</form>"
+        )
+    return HTMLResponse(_page("Scroll target", body, mutate=mutate, color=color))
+
+
+@app.get("/modal", response_class=HTMLResponse)
+@app.post("/modal", response_class=HTMLResponse)
+async def modal_page(
+    request: Request, mutate: bool = False, accepted_cookies: str | None = Cookie(None)
+) -> HTMLResponse:
+    card_class, button_class, color = _mutation(mutate)
+    action = ""
+    if request.method == "POST":
+        form = await _form(request)
+        action = form.get("action", "")
+        if "mutate" in form:
+            mutate = form["mutate"] == "1"
+
+    cookies_dismissed = accepted_cookies == "1" or action == "accept_cookies"
+
+    if action == "claim_deal" and cookies_dismissed:
+        body = (
+            '<p class="notice">Special deal claimed successfully.</p>'
+            f'<a class="button" href="/modal?mutate={int(mutate)}">Reset</a>'
+        )
+        return HTMLResponse(_page("Special Deal", body, mutate=mutate, color=color))
+
+    modal_html = ""
+    if not cookies_dismissed:
+        modal_id = secrets.token_hex(4) if mutate else "cookie-modal"
+        modal_html = (
+            f'<div id="{modal_id}" style="position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;">'
+            '<div style="background:white;padding:30px;border-radius:12px;max-width:400px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.3);">'
+            "<h2>Cookie Consent</h2>"
+            "<p>We use cookies to personalize deals. Please accept before continuing.</p>"
+            '<form action="/modal" method="post">'
+            '<input type="hidden" name="action" value="accept_cookies">'
+            f'<input type="hidden" name="mutate" value="{int(mutate)}">'
+            f'<button class="{button_class}" type="submit">Accept cookies</button>'
+            "</form>"
+            "</div></div>"
+        )
+
+    main_html = (
+        f"{modal_html}"
+        f'<div class="{card_class}">'
+        "<h2>Exclusive Member Deal</h2>"
+        "<p>Unlock your exclusive promo code below.</p>"
+        '<form action="/modal" method="post">'
+        '<input type="hidden" name="action" value="claim_deal">'
+        f'<input type="hidden" name="mutate" value="{int(mutate)}">'
+        f'<button class="{button_class}" type="submit">Claim special deal</button>'
+        "</form>"
+        "</div>"
+    )
+    response = HTMLResponse(_page("Modal Deal", main_html, mutate=mutate, color=color))
+    if action == "accept_cookies":
+        response.set_cookie("accepted_cookies", "1", httponly=True, samesite="lax")
+    return response
+
+
+@app.get("/ambiguous", response_class=HTMLResponse)
+@app.post("/ambiguous", response_class=HTMLResponse)
+async def ambiguous_page(request: Request, mutate: bool = False) -> HTMLResponse:
+    card_class, button_class, color = _mutation(mutate)
+    if request.method == "POST":
+        form = await _form(request)
+        item = form.get("item", "")
+        if item == "Target Widget":
+            body = (
+                '<p class="notice">Target Widget added to cart.</p>'
+                f'<a class="button" href="/ambiguous?mutate={int(mutate)}">Reset</a>'
+            )
+        else:
+            body = (
+                f'<p class="notice">Wrong item added: {html.escape(item)}.</p>'
+                f'<a class="button" href="/ambiguous?mutate={int(mutate)}">Try again</a>'
+            )
+        return HTMLResponse(_page("Ambiguous result", body, mutate=mutate, color=color))
+
+    items = ["Alpha Trinket", "Target Widget", "Beta Bauble"]
+    if mutate:
+        random.shuffle(items)
+    cards = []
+    for item in items:
+        cid = secrets.token_hex(4) if mutate else f"card-{item.lower().replace(' ', '-')}"
+        cards.append(
+            f'<article class="{card_class}" id="{cid}">'
+            f"<h2>{html.escape(item)}</h2>"
+            "<p>Essential hardware utility.</p>"
+            '<form action="/ambiguous" method="post">'
+            f'<input type="hidden" name="item" value="{html.escape(item)}">'
+            f'<input type="hidden" name="mutate" value="{int(mutate)}">'
+            f'<button class="{button_class}" type="submit">Add</button>'
+            "</form></article>"
+        )
+    return HTMLResponse(
+        _page(
+            "Ambiguous items",
+            f'<section class="grid">{"".join(cards)}</section>',
+            mutate=mutate,
+            color=color,
+        )
+    )
+
+
+@app.get("/icons", response_class=HTMLResponse)
+@app.post("/icons", response_class=HTMLResponse)
+async def icons_page(request: Request, mutate: bool = False) -> HTMLResponse:
+    card_class, button_class, color = _mutation(mutate)
+    if request.method == "POST":
+        form = await _form(request)
+        icon = form.get("icon", "")
+        if icon == "cart":
+            body = (
+                '<p class="notice">Cart icon selected.</p>'
+                f'<a class="button" href="/icons?mutate={int(mutate)}">Reset</a>'
+            )
+        else:
+            body = (
+                f'<p class="notice">Selected {html.escape(icon)} icon.</p>'
+                f'<a class="button" href="/icons?mutate={int(mutate)}">Try again</a>'
+            )
+        return HTMLResponse(_page("Icons result", body, mutate=mutate, color=color))
+
+    icons = [("search", "🔍"), ("star", "⭐"), ("cart", "🛒")]
+    if mutate:
+        random.shuffle(icons)
+    buttons = []
+    for icon_name, icon_char in icons:
+        bid = secrets.token_hex(4) if mutate else f"icon-{icon_name}"
+        buttons.append(
+            '<form action="/icons" method="post" style="display:inline-block;margin:8px;">'
+            f'<input type="hidden" name="icon" value="{icon_name}">'
+            f'<input type="hidden" name="mutate" value="{int(mutate)}">'
+            f'<button id="{bid}" class="{button_class}" type="submit" style="font-size:24px;padding:8px 14px;">{icon_char}</button>'
+            "</form>"
+        )
+    content = f'<div class="{card_class}"><h2>Action Bar</h2><div>{"".join(buttons)}</div></div>'
+    return HTMLResponse(_page("Icon navigation", content, mutate=mutate, color=color))

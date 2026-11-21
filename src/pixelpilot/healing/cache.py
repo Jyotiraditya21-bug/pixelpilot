@@ -52,5 +52,11 @@ class HealingCache:
                 (site, intent, locator, fingerprint.model_dump_json()),
             )
 
+    def delete(self, site: str, intent: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM locator_cache WHERE site=? AND intent=?", (site, intent)
+            )
+
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.path)

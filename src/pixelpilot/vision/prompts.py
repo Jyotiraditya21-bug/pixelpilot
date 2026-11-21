@@ -19,3 +19,27 @@ def verification_prompt(expectation: str) -> str:
 
 Return JSON only:
 {{"passed":false,"confidence":0.0,"evidence":"visible evidence"}}"""
+
+
+def planner_prompt(story_text: str, base_url: str) -> str:
+    return f"""Generate an executable browser automation plan for this story against the base URL:
+Base URL: {base_url}
+
+Story:
+{story_text}
+
+Return JSON only adhering strictly to this schema:
+{{
+  "story": "story title",
+  "expectation": "expected success outcome",
+  "steps": [
+    {{
+      "number": 1,
+      "action": {{
+        "kind": "navigate",
+        "intent": "open page",
+        "value": "{base_url}"
+      }}
+    }}
+  ]
+}}"""

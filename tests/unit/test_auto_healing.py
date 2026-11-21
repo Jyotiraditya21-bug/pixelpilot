@@ -7,7 +7,9 @@ from PIL import Image
 from pixelpilot.agents.grounder import Grounder
 from pixelpilot.agents.observer import Observation
 from pixelpilot.agents.orchestrator import Orchestrator
+from pixelpilot.browser.actions import encode_cached_locator
 from pixelpilot.healing.cache import HealingCache
+from pixelpilot.healing.fingerprint import Fingerprint
 from pixelpilot.models import (
     ActionKind,
     ActionRequest,
@@ -80,3 +82,35 @@ async def test_vlm_target_auto_enrolls_and_next_lookup_uses_cache(tmp_path: Path
     ).ground(action, observation)
     assert grounded.tier == GroundingTier.CACHE
     assert calls == 0
+
+
+@pytest.mark.asyncio
+async def test_stale_fingerprint_evicts_and_falls_through_to_role_name(
+    tmp_path: Path,
+) -> None:
+    cache = HealingCache(tmp_path / "healing.db")
+    observation = _observation(tmp_path)
+    action = ActionRequest(
+        kind=ActionKind.CLICK,
+        intent="place the order",
+        role="button",
+        name="Place order",
+    )
+    locator = encode_cached_locator(action)
+    assert locator is not None
+    cache.put(
+        "shop.test",
+        action.intent,
+        locator,
+        Fingerprint(
+            tag="button",
+            role="button",
+            text="place order",
+            region_hash="stale",
+            phash="0" * 16,
+        ),
+    )
+    orchestrator = Orchestrator(healing_cache=cache)
+    grounded = await orchestrator.grounder.ground(action, observation)
+    assert grounded.tier == GroundingTier.ROLE_NAME
+    assert cache.get("shop.test", action.intent) is None

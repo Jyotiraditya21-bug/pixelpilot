@@ -63,3 +63,28 @@ The demo binds `0.0.0.0` because the managed execution environment rejects an ex
 Raw mouse clicks do not receive Playwright locator auto-waiting. VLM coordinate clicks therefore wait for a document navigation when one starts, preventing the next observation from grounding against a stale page. Step diagnostics include the viewport bbox, Gemini HTTP status, elapsed time, and full exception detail. Gemini 2.5 thinking is disabled for strict short JSON responses, and response extraction ignores thought or empty parts.
 
 Gemini requests share a process-wide five-requests-per-minute limiter. The limiter runs before every initial request and retry, preventing benchmark bursts from repeatedly exhausting free-tier RPM. Failed grounding attempts retain `vlm_bbox` and the last provider HTTP status rather than appearing as direct-tier failures.
+
+## Verified healing enrollment integration
+
+Enrollment occurs only after the actor reports a successful VLM-grounded action. The integration contract is tested across fresh orchestrator instances sharing one SQLite file: the first run grounds and enrolls, while the second resolves the same `(site, intent)` through tier (a) without another grounding call.
+
+## Console and trace separation
+
+Stdout contains one `step/tier/pass/ms` line per step and one single-line PASS/FAIL summary per run. Full span documents, attributes, events, and exception data are written only to `runs/traces.jsonl`.
+
+## Cache fingerprint invalidation
+
+Tier (a) is accepted only when the cached semantic locator identifies a current element whose fingerprint similarity is at least 0.72. Missing targets, legacy undecodable locators, and fingerprint mismatches are evicted immediately; grounding then continues through the remaining tiers.
+
+## Demo recording
+
+`scripts/record_demo.sh` uses macOS `screencapture` video mode with a bounded duration and no added dependencies. It owns the demo and recorder processes through cleanup traps, runs the expired-coupon mutation story twice, and stops both processes on success, failure, or interruption.
+
+## README claim reconciliation
+
+Documentation names the configured default model, the five-RPM client limiter, fingerprint-based cache invalidation, and the actual planner fallback. Provider quota limits are described without a fixed daily number because they depend on the Gemini project and model.
+
+## VLM model and transient fault resiliency
+
+The default VLM model is configured as `gemini-3-flash-preview` to prevent daily free-tier request quota exhaustion (`RESOURCE_EXHAUSTED` / 429) that halts benchmarks under 20-request-per-day models. Gemini REST calls retry transient server errors (500, 502, 503, 504) and transport disconnects alongside 429 backoff, extracting `retryDelay` from error details when present. DOM snapshot evaluation catches execution context destruction during in-flight navigations and awaits document readiness before retrying. Failed grounded actions retain their grounding tier and HTTP status instead of defaulting to direct tier.
+

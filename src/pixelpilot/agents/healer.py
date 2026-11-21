@@ -21,6 +21,7 @@ class Healer:
         if entry is None or current is None:
             return None
         if fingerprint_similarity(entry.fingerprint, current) < self.threshold:
+            self.cache.delete(self.site, intent)
             return None
         return entry.locator
 

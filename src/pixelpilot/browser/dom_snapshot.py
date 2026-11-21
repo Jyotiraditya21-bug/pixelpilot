@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page
 
 from pixelpilot.models import ElementSnapshot, PageSnapshot
@@ -32,7 +33,11 @@ _SNAPSHOT_SCRIPT = r"""
 
 
 async def snapshot_page(page: Page) -> PageSnapshot:
-    raw = cast(dict[str, Any], await page.evaluate(_SNAPSHOT_SCRIPT))
+    try:
+        raw = cast(dict[str, Any], await page.evaluate(_SNAPSHOT_SCRIPT))
+    except PlaywrightError:
+        await page.wait_for_load_state("domcontentloaded")
+        raw = cast(dict[str, Any], await page.evaluate(_SNAPSHOT_SCRIPT))
     elements = tuple(ElementSnapshot.model_validate(item) for item in raw["elements"])
     return PageSnapshot(
         url=str(raw["url"]),

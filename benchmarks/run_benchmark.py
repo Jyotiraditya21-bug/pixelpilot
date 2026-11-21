@@ -15,6 +15,7 @@ from benchmarks.baseline_scripted import run_baseline
 from pixelpilot.agents.orchestrator import Orchestrator
 
 STORIES = tuple(sorted(Path("stories").glob("*.md")))
+FIXTURES = tuple(sorted(Path("stories/fixtures").glob("*.md")))
 BASE_URL = "http://127.0.0.1:8000"
 
 
@@ -28,7 +29,28 @@ class Score:
         return 100 * self.passed / self.total if self.total else 0.0
 
 
-async def benchmark(n: int) -> dict[tuple[str, bool], Score]:
+async def benchmark_fixtures(n: int) -> dict[tuple[str, bool, str], Score]:
+    scores: dict[tuple[str, bool, str], Score] = {}
+    for fixture in FIXTURES:
+        name = fixture.stem
+        for mutate in (False, True):
+            for mode, vlm_only in (("Standard", False), ("VLM-only", True)):
+                results = []
+                for _ in range(n):
+                    result = await Orchestrator(vlm_only=vlm_only).run(
+                        fixture,
+                        BASE_URL,
+                        mutate=mutate,
+                        runs_dir=Path("runs"),
+                    )
+                    results.append(result.passed)
+                scores[(name, mutate, mode)] = Score(sum(results), len(results))
+    return scores
+
+
+async def benchmark(
+    n: int,
+) -> tuple[dict[tuple[str, bool], Score], dict[tuple[str, bool, str], Score]]:
     scores: dict[tuple[str, bool], Score] = {}
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome", headless=True)
@@ -68,10 +90,15 @@ async def benchmark(n: int) -> dict[tuple[str, bool], Score]:
                 )
                 vlm_results.append(result.passed)
         scores[("PixelPilot VLM-only", mutate)] = Score(sum(vlm_results), len(vlm_results))
-    return scores
+    fixture_scores = await benchmark_fixtures(n)
+    return scores, fixture_scores
 
 
-def write_results(scores: dict[tuple[str, bool], Score], n: int) -> Path:
+def write_results(
+    scores: dict[tuple[str, bool], Score],
+    n: int,
+    fixture_scores: dict[tuple[str, bool, str], Score] | None = None,
+) -> Path:
     lines = [
         "# Benchmark results",
         "",
@@ -101,6 +128,21 @@ def write_results(scores: dict[tuple[str, bool], Score], n: int) -> Path:
             "credentials and exhausted free-tier quota are counted as failures.",
         )
     )
+    if fixture_scores:
+        lines.extend(
+            [
+                "",
+                "## Fixtures results",
+                "",
+                "| Fixture | Mutation | Mode | Passed | Success |",
+                "|---|---:|---|---:|---:|",
+            ]
+        )
+        for (fixture_name, mutate, mode), score in fixture_scores.items():
+            lines.append(
+                f"| {fixture_name} | {int(mutate)} | {mode} | {score.passed}/{score.total} | "
+                f"{score.percent:.1f}% |"
+            )
     output = Path("benchmarks/RESULTS.md")
     output.write_text("\n".join(lines) + "\n")
     return output
@@ -125,14 +167,23 @@ def main() -> None:
     if args.n < 1:
         parser.error("--n must be at least 1")
     server = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "demo_app.main:app", "--port", "8000"],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "demo_app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8000",
+        ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
     try:
         wait_for_demo()
-        scores = asyncio.run(benchmark(args.n))
-        print(write_results(scores, args.n))
+        scores, fixture_scores = asyncio.run(benchmark(args.n))
+        print(write_results(scores, args.n, fixture_scores))
     finally:
         server.terminate()
         server.wait(timeout=5)

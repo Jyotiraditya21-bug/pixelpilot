@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import time
-from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from collections.abc import Awaitable, Callable, Mapping
+from typing import Any, TypeVar
 
 import httpx
 from pydantic import BaseModel
@@ -80,19 +80,49 @@ class GeminiClient:
                 "thinkingConfig": {"thinkingBudget": 0},
             },
         }
+        return await self._execute_request(payload, response_model)
+
+    async def complete_text(self, prompt: str, response_model: type[ModelT]) -> ModelT:
+        if not self.api_key:
+            raise ValueError("PP_GEMINI_API_KEY is not configured")
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+                "maxOutputTokens": 1024,
+                "thinkingConfig": {"thinkingBudget": 0},
+            },
+        }
+        return await self._execute_request(payload, response_model)
+
+    async def _execute_request(
+        self, payload: Mapping[str, Any], response_model: type[ModelT]
+    ) -> ModelT:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
         )
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
             for attempt in range(self.max_retries + 1):
                 await self.rate_waiter()
-                response = await client.post(
-                    url,
-                    headers={"x-goog-api-key": self.api_key},
-                    json=payload,
-                )
+                try:
+                    response = await client.post(
+                        url,
+                        headers={"x-goog-api-key": self.api_key},
+                        json=payload,
+                    )
+                except httpx.TransportError:
+                    if attempt == self.max_retries:
+                        raise
+                    await self.sleeper(float(2**attempt))
+                    continue
                 self.last_status_code = response.status_code
-                if response.status_code != 429:
+                if response.status_code not in {429, 500, 502, 503, 504}:
                     response.raise_for_status()
                     return parse_json_model(_response_text(response), response_model)
                 if attempt == self.max_retries:
@@ -138,7 +168,15 @@ def _retry_delay(response: httpx.Response, attempt: int) -> float:
     retry_after = response.headers.get("retry-after")
     if retry_after is not None:
         try:
-            return max(0.0, float(retry_after))
+            return min(5.0, max(0.0, float(retry_after)))
         except ValueError:
             pass
-    return float(2**attempt)
+    try:
+        data = response.json()
+        for detail in data.get("error", {}).get("details", []):
+            delay_str = detail.get("retryDelay")
+            if isinstance(delay_str, str) and delay_str.endswith("s"):
+                return min(5.0, max(0.0, float(delay_str[:-1])))
+    except Exception:
+        pass
+    return float(min(5.0, 2**attempt))
