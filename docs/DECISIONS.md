@@ -88,3 +88,7 @@ Documentation names the configured default model, the five-RPM client limiter, f
 
 The default VLM model is configured as `gemini-3-flash-preview` to prevent daily free-tier request quota exhaustion (`RESOURCE_EXHAUSTED` / 429) that halts benchmarks under 20-request-per-day models. Gemini REST calls retry transient server errors (500, 502, 503, 504) and transport disconnects alongside 429 backoff, extracting `retryDelay` from error details when present. DOM snapshot evaluation catches execution context destruction during in-flight navigations and awaits document readiness before retrying. Failed grounded actions retain their grounding tier and HTTP status instead of defaulting to direct tier.
 
+## Deterministic demo-fixture checks
+
+Demo route integration tests execute through HTTPX's in-process ASGI transport. This keeps the stable and mutated fixture contracts covered without conditionally skipping four tests when a sandbox disallows loopback sockets; live Chrome behavior remains covered by the dedicated browser and orchestrator tests.
+
