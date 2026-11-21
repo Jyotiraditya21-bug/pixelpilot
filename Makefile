@@ -1,3 +1,6 @@
+UV_CACHE_DIR ?= /private/tmp/pixelpilot-uv-cache
+export UV_CACHE_DIR
+
 .PHONY: check lint type test demo up clean
 check: lint type test
 lint:
@@ -7,7 +10,7 @@ type:
 test:
 	uv run --no-sync pytest -m "not vlm" -q
 demo:
-	uv run --no-sync uvicorn demo_app.main:app --port 8000
+	uv run --no-sync uvicorn demo_app.main:app --host 0.0.0.0 --port 8000
 up:
 	docker compose up -d
 clean:

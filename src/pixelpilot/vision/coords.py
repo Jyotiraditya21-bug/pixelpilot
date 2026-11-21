@@ -37,3 +37,17 @@ def resize_for_vlm(image_bytes: bytes, max_side: int = 1280) -> tuple[bytes, Ima
     image.save(output, "JPEG", quality=75, optimize=True)
     transform = ImageTransform(source_width, source_height, image.width, image.height)
     return output.getvalue(), transform
+
+
+def box_2d_to_viewport(
+    box_2d: tuple[float, float, float, float], viewport_width: int, viewport_height: int
+) -> BBox:
+    ymin, xmin, ymax, xmax = (min(1000.0, max(0.0, value)) for value in box_2d)
+    left, right = sorted((xmin, xmax))
+    top, bottom = sorted((ymin, ymax))
+    return BBox(
+        x=left * viewport_width / 1000,
+        y=top * viewport_height / 1000,
+        width=(right - left) * viewport_width / 1000,
+        height=(bottom - top) * viewport_height / 1000,
+    )

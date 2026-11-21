@@ -39,3 +39,21 @@ Each condition runs all three stories three times by default. The baseline inten
 ## M11 — documentation and claims
 
 README results are copied from the generated benchmark artifact and distinguish semantic mutation resilience from general VLM accuracy. Quickstart instructions never install Playwright browsers. Known integration gaps are listed explicitly so measured demo success is not presented as broader production reliability.
+
+## Gemini migration — REST and normalized boxes
+
+The VLM boundary uses Gemini `generateContent` over `httpx`, with the API key in the `x-goog-api-key` header, temperature zero, JSON response MIME type, and exponential retry for HTTP 429. Gemini boxes use `[ymin,xmin,ymax,xmax]` normalized to 0–1000 and are converted directly to the 1280×900 browser viewport.
+
+## Automatic VLM healing enrollment
+
+A VLM target is enrolled only after its browser action succeeds. The pre-action crop is fingerprinted and stored with a serialized semantic locator under `(site, intent)`. `vlm-preferred` mode checks this cache before bypassing role/name and DOM-text tiers, allowing a first visual run to heal a later run without another grounding request.
+
+## VLM-only benchmark mode
+
+VLM-only mode disables cache, role/name, and DOM-text grounding while retaining direct navigation. Its results are reported separately from semantic PixelPilot, and provider errors, missing credentials, and exhausted rate-limit retries count as failed runs rather than aborting the matrix.
+
+## Runtime diagnostics and trace sink
+
+Span JSON is appended only to `runs/traces.jsonl`; normal console output is one compact line per step plus the final run result. Failures retain exception type and message. Direct navigation uses the same retry budget as grounded actions. Doctor performs exactly one minimal Gemini request and reports its HTTP status without printing credentials or response content.
+
+The demo binds `0.0.0.0` because the managed execution environment rejects an explicit `127.0.0.1` bind with `EPERM`; clients still use `http://localhost:8000`.

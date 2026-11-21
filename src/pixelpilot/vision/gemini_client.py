@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import asyncio
+import base64
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
+
+import httpx
+from pydantic import BaseModel
+
+from pixelpilot.vision.parsing import parse_json_model
+
+ModelT = TypeVar("ModelT", bound=BaseModel)
+Sleeper = Callable[[float], Awaitable[None]]
+
+
+class GeminiClient:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gemini-2.5-flash",
+        timeout: float = 60.0,
+        max_retries: int = 3,
+        transport: httpx.AsyncBaseTransport | None = None,
+        sleeper: Sleeper = asyncio.sleep,
+    ):
+        self.api_key = api_key
+        self.model = model
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.transport = transport
+        self.sleeper = sleeper
+
+    async def complete(
+        self, prompt: str, image_bytes: bytes, response_model: type[ModelT]
+    ) -> ModelT:
+        if not self.api_key:
+            raise ValueError("PP_GEMINI_API_KEY is not configured")
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inlineData": {
+                                "mimeType": "image/jpeg",
+                                "data": base64.b64encode(image_bytes).decode("ascii"),
+                            }
+                        },
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+            },
+        }
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        )
+        async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
+            for attempt in range(self.max_retries + 1):
+                response = await client.post(
+                    url,
+                    headers={"x-goog-api-key": self.api_key},
+                    json=payload,
+                )
+                if response.status_code != 429:
+                    response.raise_for_status()
+                    return parse_json_model(_response_text(response), response_model)
+                if attempt == self.max_retries:
+                    response.raise_for_status()
+                await self.sleeper(_retry_delay(response, attempt))
+        raise RuntimeError("Gemini request loop ended unexpectedly")
+
+    async def probe(self) -> int:
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        )
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": "Reply OK"}]}],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 1},
+        }
+        async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
+            response = await client.post(
+                url,
+                headers={"x-goog-api-key": self.api_key},
+                json=payload,
+            )
+        return response.status_code
+
+
+def _response_text(response: httpx.Response) -> str:
+    envelope = response.json()
+    try:
+        text = envelope["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError("Gemini response did not contain candidate text") from exc
+    if not isinstance(text, str):
+        raise ValueError("Gemini candidate text was not a string")
+    return text
+
+
+def _retry_delay(response: httpx.Response, attempt: int) -> float:
+    retry_after = response.headers.get("retry-after")
+    if retry_after is not None:
+        try:
+            return max(0.0, float(retry_after))
+        except ValueError:
+            pass
+    return float(2**attempt)

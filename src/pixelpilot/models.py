@@ -72,6 +72,12 @@ class GroundingResult(StrictModel):
     description: str
 
 
+class GeminiGroundingResult(StrictModel):
+    box_2d: tuple[float, float, float, float]
+    confidence: float = Field(ge=0, le=1)
+    description: str
+
+
 class VisualVerification(StrictModel):
     passed: bool
     confidence: float = Field(ge=0, le=1)

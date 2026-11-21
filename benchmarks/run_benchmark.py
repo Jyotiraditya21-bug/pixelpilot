@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-from baseline_scripted import run_baseline
 from playwright.async_api import async_playwright
 
+from benchmarks.baseline_scripted import run_baseline
 from pixelpilot.agents.orchestrator import Orchestrator
 
 STORIES = tuple(sorted(Path("stories").glob("*.md")))
@@ -56,6 +56,18 @@ async def benchmark(n: int) -> dict[tuple[str, bool], Score]:
                 )
                 pixelpilot_results.append(result.passed)
         scores[("PixelPilot", mutate)] = Score(sum(pixelpilot_results), len(pixelpilot_results))
+    for mutate in (False, True):
+        vlm_results = []
+        for story in STORIES:
+            for _ in range(n):
+                result = await Orchestrator(vlm_only=True).run(
+                    story,
+                    BASE_URL,
+                    mutate=mutate,
+                    runs_dir=Path("runs"),
+                )
+                vlm_results.append(result.passed)
+        scores[("PixelPilot VLM-only", mutate)] = Score(sum(vlm_results), len(vlm_results))
     return scores
 
 
@@ -68,7 +80,7 @@ def write_results(scores: dict[tuple[str, bool], Score], n: int) -> Path:
         "| Runner | Mutation | Passed | Success |",
         "|---|---:|---:|---:|",
     ]
-    for runner in ("Scripted baseline", "PixelPilot"):
+    for runner in ("Scripted baseline", "PixelPilot", "PixelPilot VLM-only"):
         for mutate in (False, True):
             score = scores[(runner, mutate)]
             lines.append(
@@ -83,9 +95,10 @@ def write_results(scores: dict[tuple[str, bool], Score], n: int) -> Path:
             "Targets: scripted baseline under mutation <30%; PixelPilot under mutation ≥85%.",
             f"Observed: baseline {baseline:.1f}%, PixelPilot {pixelpilot:.1f}%.",
             "",
-            "The baseline intentionally uses fixed IDs/classes. PixelPilot uses accessible "
-            "semantics; these demo runs do not require a VLM call, so free-tier model "
-            "limits do not affect them.",
+            "The baseline intentionally uses fixed IDs/classes. Standard PixelPilot uses "
+            "accessible semantics. PixelPilot VLM-only disables cache, role/name, and DOM "
+            "text so every non-navigation grounding attempt exercises Gemini REST. Missing "
+            "credentials and exhausted free-tier quota are counted as failures.",
         )
     )
     output = Path("benchmarks/RESULTS.md")

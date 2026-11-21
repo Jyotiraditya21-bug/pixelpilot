@@ -9,8 +9,8 @@ DOM context:
 {dom_context[:8000]}
 
 Return JSON only with this schema:
-{{"bbox":{{"x":0,"y":0,"width":0,"height":0}},"confidence":0.0,"description":"..."}}
-Coordinates must be absolute pixels in the supplied resized image, not normalized coordinates."""
+{{"box_2d":[ymin,xmin,ymax,xmax],"confidence":0.0,"description":"..."}}
+box_2d coordinates must be integers normalized to 0-1000 in the exact order shown."""
 
 
 def verification_prompt(expectation: str) -> str:

@@ -24,5 +24,5 @@ class Healer:
             return None
         return entry.locator
 
-    def remember(self, intent: str, locator: str, fingerprint: Fingerprint) -> None:
+    def enroll_validated(self, intent: str, locator: str, fingerprint: Fingerprint) -> None:
         self.cache.put(self.site, intent, locator, fingerprint)

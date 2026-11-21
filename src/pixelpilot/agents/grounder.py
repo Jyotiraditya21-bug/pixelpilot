@@ -11,7 +11,7 @@ from pixelpilot.models import (
     GroundingTier,
 )
 
-CachedLocator = Callable[[str], Awaitable[str | None]]
+CachedLocator = Callable[[str, Observation], Awaitable[str | None]]
 VisionGrounder = Callable[[str, str, bytes], Awaitable[GroundingResult]]
 
 
@@ -20,13 +20,18 @@ class Grounder:
         self,
         cached_locator: CachedLocator | None = None,
         vision_grounder: VisionGrounder | None = None,
+        *,
+        semantic_enabled: bool = True,
+        cache_enabled: bool = True,
     ):
         self.cached_locator = cached_locator
         self.vision_grounder = vision_grounder
+        self.semantic_enabled = semantic_enabled
+        self.cache_enabled = cache_enabled
 
     async def ground(self, request: ActionRequest, observation: Observation) -> GroundedAction:
-        if self.cached_locator is not None:
-            locator = await self.cached_locator(request.intent)
+        if self.cache_enabled and self.cached_locator is not None:
+            locator = await self.cached_locator(request.intent, observation)
             if locator:
                 return GroundedAction(
                     action=request.model_copy(update={"locator": locator}),
@@ -34,9 +39,14 @@ class Grounder:
                     confidence=0.98,
                     healed=True,
                 )
-        if request.role and request.name and self._has_role_name(request, observation):
+        if (
+            self.semantic_enabled
+            and request.role
+            and request.name
+            and self._has_role_name(request, observation)
+        ):
             return GroundedAction(action=request, tier=GroundingTier.ROLE_NAME, confidence=0.95)
-        if request.text and self._has_text(request.text, observation):
+        if self.semantic_enabled and request.text and self._has_text(request.text, observation):
             return GroundedAction(
                 action=request.model_copy(update={"role": None, "name": None}),
                 tier=GroundingTier.DOM_TEXT,
