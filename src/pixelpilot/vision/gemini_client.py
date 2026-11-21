@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import time
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
@@ -12,6 +13,24 @@ from pixelpilot.vision.parsing import parse_json_model
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 Sleeper = Callable[[float], Awaitable[None]]
+RateWaiter = Callable[[], Awaitable[None]]
+
+
+class RequestRateLimiter:
+    def __init__(self, requests_per_minute: float):
+        self.interval = 60 / requests_per_minute
+        self._lock = asyncio.Lock()
+        self._next_request = 0.0
+
+    async def wait(self) -> None:
+        async with self._lock:
+            delay = self._next_request - time.monotonic()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self._next_request = time.monotonic() + self.interval
+
+
+_RATE_LIMITER = RequestRateLimiter(5)
 
 
 class GeminiClient:
@@ -23,6 +42,7 @@ class GeminiClient:
         max_retries: int = 3,
         transport: httpx.AsyncBaseTransport | None = None,
         sleeper: Sleeper = asyncio.sleep,
+        rate_waiter: RateWaiter = _RATE_LIMITER.wait,
     ):
         self.api_key = api_key
         self.model = model
@@ -30,6 +50,7 @@ class GeminiClient:
         self.max_retries = max_retries
         self.transport = transport
         self.sleeper = sleeper
+        self.rate_waiter = rate_waiter
         self.last_status_code: int | None = None
 
     async def complete(
@@ -64,6 +85,7 @@ class GeminiClient:
         )
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
             for attempt in range(self.max_retries + 1):
+                await self.rate_waiter()
                 response = await client.post(
                     url,
                     headers={"x-goog-api-key": self.api_key},

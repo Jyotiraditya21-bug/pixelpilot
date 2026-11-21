@@ -82,7 +82,15 @@ async def test_gemini_json_request_and_429_backoff() -> None:
     async def sleep(delay: float) -> None:
         delays.append(delay)
 
-    client = GeminiClient("secret", transport=httpx.MockTransport(handler), sleeper=sleep)
+    async def no_rate_wait() -> None:
+        return None
+
+    client = GeminiClient(
+        "secret",
+        transport=httpx.MockTransport(handler),
+        sleeper=sleep,
+        rate_waiter=no_rate_wait,
+    )
     result = await client.complete("locate", b"jpeg", GeminiGroundingResult)
     assert result.box_2d == (100, 200, 300, 400)
     assert attempts == 2

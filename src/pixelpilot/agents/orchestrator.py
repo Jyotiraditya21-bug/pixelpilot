@@ -153,6 +153,8 @@ class Orchestrator:
         self, session: BrowserSession, number: int, action: ActionRequest
     ) -> StepRecord:
         last_detail = "step was not attempted"
+        last_tier: GroundingTier | None = None
+        last_http_status: int | None = None
         for _attempt in range(STEP_RETRIES + 1):
             try:
                 if action.kind == ActionKind.NAVIGATE:
@@ -195,7 +197,19 @@ class Orchestrator:
                 last_detail = result.detail
             except (TimeoutError, LookupError, httpx.HTTPError, ValueError) as exc:
                 last_detail = _error_detail(exc)
-        return StepRecord(number=number, intent=action.intent, success=False, detail=last_detail)
+                if action.kind != ActionKind.NAVIGATE:
+                    last_tier = GroundingTier.VLM
+                    last_http_status = self.vision.last_status_code
+                if isinstance(exc, httpx.HTTPStatusError):
+                    last_http_status = exc.response.status_code
+        return StepRecord(
+            number=number,
+            intent=action.intent,
+            success=False,
+            tier=last_tier,
+            http_status=last_http_status,
+            detail=last_detail,
+        )
 
     async def _cached_locator(self, intent: str, observation: object) -> str | None:
         from pixelpilot.agents.observer import Observation

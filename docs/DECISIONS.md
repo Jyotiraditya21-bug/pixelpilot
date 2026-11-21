@@ -61,3 +61,5 @@ The demo binds `0.0.0.0` because the managed execution environment rejects an ex
 ## Coordinate-click navigation synchronization
 
 Raw mouse clicks do not receive Playwright locator auto-waiting. VLM coordinate clicks therefore wait for a document navigation when one starts, preventing the next observation from grounding against a stale page. Step diagnostics include the viewport bbox, Gemini HTTP status, elapsed time, and full exception detail. Gemini 2.5 thinking is disabled for strict short JSON responses, and response extraction ignores thought or empty parts.
+
+Gemini requests share a process-wide five-requests-per-minute limiter. The limiter runs before every initial request and retry, preventing benchmark bursts from repeatedly exhausting free-tier RPM. Failed grounding attempts retain `vlm_bbox` and the last provider HTTP status rather than appearing as direct-tier failures.
