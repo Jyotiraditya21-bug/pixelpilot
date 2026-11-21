@@ -57,3 +57,7 @@ VLM-only mode disables cache, role/name, and DOM-text grounding while retaining 
 Span JSON is appended only to `runs/traces.jsonl`; normal console output is one compact line per step plus the final run result. Failures retain exception type and message. Direct navigation uses the same retry budget as grounded actions. Doctor performs exactly one minimal Gemini request and reports its HTTP status without printing credentials or response content.
 
 The demo binds `0.0.0.0` because the managed execution environment rejects an explicit `127.0.0.1` bind with `EPERM`; clients still use `http://localhost:8000`.
+
+## Coordinate-click navigation synchronization
+
+Raw mouse clicks do not receive Playwright locator auto-waiting. VLM coordinate clicks therefore wait for a document navigation when one starts, preventing the next observation from grounding against a stale page. Step diagnostics include the viewport bbox, Gemini HTTP status, elapsed time, and full exception detail. Gemini 2.5 thinking is disabled for strict short JSON responses, and response extraction ignores thought or empty parts.

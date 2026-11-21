@@ -141,10 +141,11 @@ class Orchestrator:
                 add_screenshot_event(step_span, str(record.screenshot))
             line = (
                 f"step={number} tier={record.tier or 'direct'} "
-                f"pass={str(record.success).lower()} ms={elapsed_ms:.1f}"
+                f"pass={str(record.success).lower()} ms={elapsed_ms:.1f} "
+                f"bbox={_bbox_text(record.bbox)} http={record.http_status or '-'}"
             )
             if not record.success:
-                line += f" error={record.detail}"
+                line += f" exception={record.detail}"
             print(line)
             return record
 
@@ -186,6 +187,7 @@ class Orchestrator:
                         healed=grounded.healed,
                         confidence=grounded.confidence,
                         vlm_ms=grounded.vlm_ms,
+                        http_status=grounded.http_status,
                         detail=result.detail,
                         screenshot=observation.screenshot.path,
                         bbox=grounded.action.bbox,
@@ -233,6 +235,7 @@ class Orchestrator:
             bbox=box_2d_to_viewport(result.box_2d, 1280, 900),
             confidence=result.confidence,
             description=result.description,
+            http_status=self.vision.last_status_code,
         )
 
     async def _vision_verify(self, expectation: str, image: bytes) -> VisualVerification:
@@ -275,3 +278,9 @@ def _target_element(elements: tuple[ElementSnapshot, ...], bbox: BBox) -> Elemen
 def _error_detail(exc: BaseException) -> str:
     message = str(exc).strip() or repr(exc)
     return f"{type(exc).__name__}: {message}"
+
+
+def _bbox_text(bbox: BBox | None) -> str:
+    if bbox is None:
+        return "-"
+    return f"[{bbox.x:.1f},{bbox.y:.1f},{bbox.width:.1f},{bbox.height:.1f}]"

@@ -4,6 +4,7 @@ import json
 from typing import Any, cast
 
 from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from pixelpilot.models import ActionKind, ActionRequest, ActionResult
 
@@ -26,7 +27,7 @@ async def perform_action(page: Page, action: ActionRequest) -> ActionResult:
         elif action.bbox:
             x, y = action.bbox.center
             if action.kind == ActionKind.CLICK:
-                await page.mouse.click(x, y)
+                await _coordinate_click(page, x, y)
             elif action.kind == ActionKind.TYPE and action.value is not None:
                 await page.mouse.click(x, y)
                 await page.keyboard.insert_text(action.value)
@@ -78,3 +79,12 @@ def _resolve_cached_locator(page: Page, locator: str) -> object:
     if isinstance(text, str):
         return page.get_by_text(text, exact=False).first
     raise ValueError("cached semantic locator has no target")
+
+
+async def _coordinate_click(page: Page, x: float, y: float) -> None:
+    try:
+        async with page.expect_navigation(wait_until="domcontentloaded", timeout=3_000):
+            await page.mouse.click(x, y)
+    except PlaywrightTimeoutError:
+        # The click may update the page without a document navigation.
+        await page.wait_for_load_state("domcontentloaded", timeout=3_000)

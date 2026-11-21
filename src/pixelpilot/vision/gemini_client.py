@@ -30,6 +30,7 @@ class GeminiClient:
         self.max_retries = max_retries
         self.transport = transport
         self.sleeper = sleeper
+        self.last_status_code: int | None = None
 
     async def complete(
         self, prompt: str, image_bytes: bytes, response_model: type[ModelT]
@@ -54,6 +55,8 @@ class GeminiClient:
             "generationConfig": {
                 "temperature": 0,
                 "responseMimeType": "application/json",
+                "maxOutputTokens": 256,
+                "thinkingConfig": {"thinkingBudget": 0},
             },
         }
         url = (
@@ -66,6 +69,7 @@ class GeminiClient:
                     headers={"x-goog-api-key": self.api_key},
                     json=payload,
                 )
+                self.last_status_code = response.status_code
                 if response.status_code != 429:
                     response.raise_for_status()
                     return parse_json_model(_response_text(response), response_model)
@@ -94,12 +98,18 @@ class GeminiClient:
 def _response_text(response: httpx.Response) -> str:
     envelope = response.json()
     try:
-        text = envelope["candidates"][0]["content"]["parts"][0]["text"]
+        candidate = envelope["candidates"][0]
+        parts = candidate["content"]["parts"]
     except (KeyError, IndexError, TypeError) as exc:
         raise ValueError("Gemini response did not contain candidate text") from exc
-    if not isinstance(text, str):
-        raise ValueError("Gemini candidate text was not a string")
-    return text
+    for part in reversed(parts):
+        if not isinstance(part, dict) or part.get("thought") is True:
+            continue
+        text = part.get("text")
+        if isinstance(text, str) and text.strip():
+            return text
+    finish_reason = candidate.get("finishReason", "unknown")
+    raise ValueError(f"Gemini candidate text was empty (finishReason={finish_reason})")
 
 
 def _retry_delay(response: httpx.Response, attempt: int) -> float:

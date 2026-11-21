@@ -57,6 +57,7 @@ async def test_gemini_json_request_and_429_backoff() -> None:
         attempts += 1
         assert request.headers["x-goog-api-key"] == "secret"
         assert b'"temperature":0' in request.content
+        assert b'"thinkingBudget":0' in request.content
         if attempts == 1:
             return httpx.Response(429, headers={"retry-after": "0"}, request=request)
         return httpx.Response(
@@ -86,6 +87,31 @@ async def test_gemini_json_request_and_429_backoff() -> None:
     assert result.box_2d == (100, 200, 300, 400)
     assert attempts == 2
     assert delays == [0]
+
+
+def test_gemini_uses_non_thought_non_empty_response_part() -> None:
+    request = httpx.Request("POST", "https://example.test")
+    response = httpx.Response(
+        200,
+        json={
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"text": "internal", "thought": True},
+                            {"text": ""},
+                            {"text": '{"passed":true}'},
+                        ]
+                    },
+                    "finishReason": "STOP",
+                }
+            ]
+        },
+        request=request,
+    )
+    from pixelpilot.vision.gemini_client import _response_text
+
+    assert _response_text(response) == '{"passed":true}'
 
 
 @pytest.mark.asyncio

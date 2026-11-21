@@ -70,6 +70,7 @@ class GroundingResult(StrictModel):
     bbox: BBox
     confidence: float = Field(ge=0, le=1)
     description: str
+    http_status: int | None = None
 
 
 class GeminiGroundingResult(StrictModel):
@@ -108,6 +109,7 @@ class GroundedAction(StrictModel):
     confidence: float = Field(ge=0, le=1)
     healed: bool = False
     vlm_ms: float = 0.0
+    http_status: int | None = None
 
 
 class VerificationResult(StrictModel):
@@ -125,6 +127,7 @@ class StepRecord(StrictModel):
     healed: bool = False
     confidence: float = 0.0
     vlm_ms: float = 0.0
+    http_status: int | None = None
     detail: str = ""
     screenshot: Path | None = None
     bbox: BBox | None = None

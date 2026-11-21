@@ -65,6 +65,7 @@ class Grounder:
             tier=GroundingTier.VLM,
             confidence=found.confidence,
             vlm_ms=vlm_ms,
+            http_status=found.http_status,
         )
 
     @staticmethod
