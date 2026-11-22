@@ -92,3 +92,11 @@ The default VLM model is configured as `gemini-3-flash-preview` to prevent daily
 
 Demo route integration tests execute through HTTPX's in-process ASGI transport. This keeps the stable and mutated fixture contracts covered without conditionally skipping four tests when a sandbox disallows loopback sockets; live Chrome behavior remains covered by the dedicated browser and orchestrator tests.
 
+## Local dashboard execution boundary
+
+The dashboard binds only to `127.0.0.1:8100`, admits runs only for the configured demo host and loopback aliases, and delegates every execution to `Orchestrator`. A per-process registry streams typed step records over SSE while durable history continues to come from existing run JSON artifacts.
+
+## Saved-run replay and comparison
+
+Replay and comparison read only serialized `RunRecord` step data through `GET /api/runs/{id}/steps`. Playback timing, scrubbing, tier diffs, and screenshot selection remain browser-local and cannot instantiate an orchestrator or issue a model request.
+

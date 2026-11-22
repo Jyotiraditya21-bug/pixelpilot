@@ -1,42 +1,145 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PixelPilot — {{ run.story }}</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("pixelpilot-theme");
+      if (savedTheme === "dark" || savedTheme === "light") document.documentElement.dataset.theme = savedTheme;
+    } catch (_error) { document.documentElement.dataset.theme = "light"; }
+  </script>
   <style>
-    :root { color-scheme: dark; --panel:#182230; --muted:#98a2b3; --accent:#7f56d9; }
-    body { margin:0; font:15px system-ui; color:#f2f4f7; background:#0c111d; }
-    main { max-width:1100px; padding:32px; margin:auto; }
-    header,.step { background:var(--panel); border:1px solid #344054; border-radius:14px; padding:20px; margin-bottom:18px; }
-    .pass { color:#75e0a7 }.fail { color:#fda29b }.meta { color:var(--muted) }
-    .badge { display:inline-block; padding:3px 9px; border-radius:99px; background:#3538cd; margin-right:6px; }
-    .heal { background:#b54708 }.shot { position:relative; display:inline-block; max-width:100%; margin-top:12px; }
-    img { display:block; max-width:100%; border-radius:8px; }
-    .bbox { position:absolute; border:3px solid #f04438; box-shadow:0 0 0 2px #fff8; pointer-events:none; }
-    code { overflow-wrap:anywhere } h2 { margin-top:0 }
+    :root {
+      color-scheme:light;
+      --paper:#f4efe4; --paper-raised:#fbf7ee; --paper-deep:#e8e0d2;
+      --ink:#171813; --ink-muted:#5d6058; --rule:#77786f; --rule-soft:#c3bcae;
+      --signal:#8b3b18; --signal-ink:#fbf7ee; --pass:#1f6a40; --fail:#a12c24;
+      --tier-cache:#4b5563; --tier-role:#22653f; --tier-dom:#00636b;
+      --tier-vision:#835000; --tier-replan:#8b2f3b; --tier-heal:#665500;
+      --canvas:#11120f; --focus:#8b3b18;
+      --font-display:"Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
+      --font-mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+      --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px; --sp-8:32px;
+      --touch:44px; --radius-control:2px; --radius-frame:4px; --hairline:1px; --rule-heavy:2px;
+      --body-size:1rem; --small-size:.8125rem; --micro-size:.75rem;
+      --header-h:64px; --page-max:1180px; --result-w:180px; --index-w:64px;
+      --index-mobile:44px; --bbox-w:3px; --focus-w:3px;
+      --measure:75ch; --title-size:clamp(1.5rem,4vw,2.5rem); --outcome-size:1.5rem;
+      --heading-size:1rem; --display-size:clamp(1.125rem,2vw,1.375rem);
+      --print-paper:#f4efe4; --print-raised:#fbf7ee; --print-deep:#e8e0d2;
+      --print-ink:#171813; --print-muted:#5d6058; --print-rule:#77786f; --print-rule-soft:#c3bcae;
+      --print-signal:#8b3b18; --print-signal-ink:#fbf7ee; --print-pass:#1f6a40; --print-fail:#a12c24;
+      --print-cache:#4b5563; --print-role:#22653f; --print-dom:#00636b; --print-vision:#835000;
+      --print-replan:#8b2f3b; --print-heal:#665500; --print-canvas:#11120f;
+    }
+    :root[data-theme="dark"] {
+      color-scheme:dark;
+      --paper:#15130f; --paper-raised:#201d17; --paper-deep:#2b271f;
+      --ink:#f2ecdf; --ink-muted:#b9b2a5; --rule:#8a8376; --rule-soft:#4a453d;
+      --signal:#f0a56a; --signal-ink:#15130f; --pass:#79d49f; --fail:#ff9489;
+      --tier-cache:#c5cbd3; --tier-role:#7ed3a1; --tier-dom:#71d4dc;
+      --tier-vision:#f3bd68; --tier-replan:#ff9aa8; --tier-heal:#d9c96b;
+      --canvas:#0c0d0b; --focus:#f0a56a;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font:var(--body-size)/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button:focus-visible { outline:var(--focus-w) solid var(--focus); outline-offset:var(--sp-1); }
+    h1,h2,h3 { margin:0; font-family:var(--font-display); line-height:1.1; letter-spacing:.055em; text-transform:uppercase; }
+    .mono,code,.tag,.step-index { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+    .masthead { min-height:var(--header-h); display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4); padding:var(--sp-3) var(--sp-4); border-bottom:var(--rule-heavy) solid var(--ink); background:var(--paper-raised); }
+    .masthead h1 { font-size:var(--display-size); }
+    .theme-toggle { min-width:var(--touch); min-height:var(--touch); display:grid; place-items:center; border:var(--hairline) solid var(--rule); border-radius:var(--radius-control); background:var(--paper); color:var(--ink); cursor:pointer; }
+    .theme-toggle svg { width:var(--sp-4); height:var(--sp-4); fill:none; stroke:currentColor; stroke-width:1.75; }
+    main { width:min(var(--page-max),100%); margin:0 auto; padding:var(--sp-6); }
+    .run-head { display:grid; grid-template-columns:minmax(0,1fr) var(--result-w); border:var(--hairline) solid var(--rule); border-radius:var(--radius-frame); background:var(--paper-raised); }
+    .run-primary { min-width:0; padding:var(--sp-6); }
+    .eyebrow { color:var(--signal); font:700 var(--micro-size) var(--font-mono); letter-spacing:.08em; }
+    .run-primary h2 { margin:var(--sp-1) 0 var(--sp-3); font-size:var(--title-size); overflow-wrap:anywhere; }
+    .evidence { max-width:var(--measure); margin:0; }
+    .run-result { display:grid; place-content:center; padding:var(--sp-4); border-left:var(--rule-heavy) double var(--rule); background:var(--paper-deep); text-align:center; }
+    .run-result strong { font:900 var(--outcome-size) var(--font-display); letter-spacing:.1em; }
+    .pass { color:var(--pass); } .fail { color:var(--fail); }
+    .run-meta { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:var(--sp-2) var(--sp-6); padding:var(--sp-2) var(--sp-6); border-top:var(--hairline) solid var(--rule-soft); color:var(--ink-muted); font-size:var(--micro-size); overflow-wrap:anywhere; }
+    .section-head { display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-3); margin:var(--sp-6) 0 var(--sp-3); padding-bottom:var(--sp-2); border-bottom:var(--hairline) solid var(--rule); }
+    .section-head h2 { font-size:var(--heading-size); }
+    .section-head span { color:var(--ink-muted); font-size:var(--micro-size); }
+    .steps { display:grid; gap:var(--sp-3); }
+    .step { display:grid; grid-template-columns:var(--index-w) minmax(0,1fr); overflow:hidden; border:var(--hairline) solid var(--rule-soft); border-radius:var(--radius-frame); background:var(--paper-raised); break-inside:avoid; }
+    .step-index { padding:var(--sp-4) var(--sp-2); border-right:var(--hairline) solid var(--rule-soft); background:var(--paper-deep); color:var(--signal); font-weight:800; text-align:center; }
+    .step-main { min-width:0; padding:var(--sp-4); }
+    .step-top { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--sp-4); }
+    .step h3 { font-size:var(--heading-size); overflow-wrap:anywhere; }
+    .tags,.metrics { display:flex; flex-wrap:wrap; gap:var(--sp-1) var(--sp-3); }
+    .tags { margin:var(--sp-3) 0; }
+    .tag { display:inline-flex; align-items:center; min-height:var(--sp-6); padding:0 var(--sp-2); border:var(--hairline) solid currentColor; font-size:var(--micro-size); text-transform:uppercase; }
+    .tier-cached_locator { color:var(--tier-cache); } .tier-role_name { color:var(--tier-role); }
+    .tier-dom_text { color:var(--tier-dom); } .tier-vlm_bbox { color:var(--tier-vision); }
+    .tier-replan { color:var(--tier-replan); } .tier-direct { color:var(--ink-muted); }
+    .heal { color:var(--tier-heal); }
+    .metrics { margin:0; color:var(--ink-muted); font-size:var(--micro-size); }
+    .detail { max-width:var(--measure); margin:var(--sp-3) 0 0; overflow-wrap:anywhere; }
+    .shot { position:relative; display:inline-block; max-width:100%; margin-top:var(--sp-4); border:var(--hairline) solid var(--rule); background:var(--canvas); line-height:0; }
+    img { display:block; max-width:100%; height:auto; }
+    .bbox { position:absolute; border:var(--bbox-w) solid var(--signal); box-shadow:0 0 0 var(--hairline) var(--canvas); pointer-events:none; }
+    .bbox::before { content:"TARGET"; position:absolute; left:calc(var(--bbox-w) * -1); bottom:100%; padding:var(--sp-1) var(--sp-2); color:var(--signal-ink); background:var(--signal); font:700 var(--micro-size)/1.2 var(--font-mono); }
+    footer { margin-top:var(--sp-6); padding-top:var(--sp-2); border-top:var(--rule-heavy) double var(--rule); color:var(--ink-muted); font-size:var(--micro-size); }
+    @media (max-width:620px) {
+      main { padding:var(--sp-3); }
+      .run-head { grid-template-columns:1fr; }
+      .run-result { place-content:start; border-top:var(--hairline) solid var(--rule-soft); border-left:0; text-align:left; }
+      .step { grid-template-columns:var(--index-mobile) minmax(0,1fr); }
+      .step-top { display:block; }
+    }
+    @media print {
+      :root,:root[data-theme="dark"] { color-scheme:light; --paper:var(--print-paper); --paper-raised:var(--print-raised); --paper-deep:var(--print-deep); --ink:var(--print-ink); --ink-muted:var(--print-muted); --rule:var(--print-rule); --rule-soft:var(--print-rule-soft); --signal:var(--print-signal); --signal-ink:var(--print-signal-ink); --pass:var(--print-pass); --fail:var(--print-fail); --tier-cache:var(--print-cache); --tier-role:var(--print-role); --tier-dom:var(--print-dom); --tier-vision:var(--print-vision); --tier-replan:var(--print-replan); --tier-heal:var(--print-heal); --canvas:var(--print-canvas); --focus:var(--print-signal); }
+      .theme-toggle { display:none; }
+      body { print-color-adjust:exact; }
+      main { width:100%; padding:0; }
+    }
   </style>
 </head>
-<body><main>
-  <header>
-    <h1>{{ run.story }}</h1>
-    <h2 class="{{ 'pass' if run.passed else 'fail' }}">{{ 'PASS' if run.passed else 'FAIL' }}</h2>
-    <p><strong>Evidence:</strong> {{ run.evidence }}</p>
-    <p class="meta">Run {{ run.run_id }} · Trace <code>{{ run.trace_id or 'not exported' }}</code></p>
+<body>
+  <header class="masthead">
+    <h1>PixelPilot / Evidence record</h1>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Use dark theme" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
+    </button>
   </header>
-  {% for item in steps %}
-  {% set step = item.record %}
-  <section class="step">
-    <h2>Step {{ step.number }} — {{ step.intent }}</h2>
-    <span class="badge">{{ item.tier }}</span>
-    {% if step.healed %}<span class="badge heal">healed cache hit</span>{% endif %}
-    <span class="{{ 'pass' if step.success else 'fail' }}">{{ 'passed' if step.success else 'failed' }}</span>
-    <p class="meta">confidence {{ '%.2f'|format(step.confidence) }} · {{ step.detail }}</p>
-    {% if item.image %}
-    <div class="shot"><img src="{{ item.image }}" alt="Screenshot for step {{ step.number }}">
-      {% if item.overlay %}<div class="bbox" style="left:{{ item.overlay.x }}px;top:{{ item.overlay.y }}px;width:{{ item.overlay.width }}px;height:{{ item.overlay.height }}px"></div>{% endif %}
+  <main>
+    <header class="run-head">
+      <div class="run-primary"><div class="eyebrow">RUN {{ run.run_id }}</div><h2>{{ run.story }}</h2><p class="evidence"><strong>Verifier evidence:</strong> {{ run.evidence }}</p></div>
+      <div class="run-result {{ 'pass' if run.passed else 'fail' }}"><span class="mono">OUTCOME</span><strong>{{ 'PASSED' if run.passed else 'FAILED' }}</strong></div>
+      <div class="run-meta mono"><span>TRACE {{ run.trace_id or 'not exported' }}</span><span>{{ steps|length }} RECORDED STEPS</span></div>
+    </header>
+    <div class="section-head"><h2>Execution trace</h2><span class="mono">TIER / HEAL / EVIDENCE</span></div>
+    <div class="steps">
+      {% for item in steps %}{% set step = item.record %}
+      <section class="step">
+        <div class="step-index">{{ '%02d'|format(step.number) }}</div>
+        <div class="step-main">
+          <div class="step-top"><h3>{{ step.intent }}</h3><strong class="mono {{ 'pass' if step.success else 'fail' }}">{{ 'PASS' if step.success else 'FAIL' }}</strong></div>
+          <div class="tags"><span class="tag tier-{{ item.tier }}">{{ item.tier }}</span>{% if step.healed %}<span class="tag heal">healed cache hit</span>{% endif %}</div>
+          <p class="metrics mono"><span>CONF {{ '%.2f'|format(step.confidence) }}</span><span>VLM {{ '%.1f'|format(step.vlm_ms) }} MS</span>{% if step.http_status %}<span>HTTP {{ step.http_status }}</span>{% endif %}</p>
+          <p class="detail">{{ step.detail }}</p>
+          {% if item.image %}<div class="shot"><img src="{{ item.image }}" alt="Browser screenshot for step {{ step.number }}">{% if item.overlay %}<div class="bbox" style="left:{{ item.overlay.x }}px;top:{{ item.overlay.y }}px;width:{{ item.overlay.width }}px;height:{{ item.overlay.height }}px"></div>{% endif %}</div>{% endif %}
+        </div>
+      </section>
+      {% endfor %}
     </div>
-    {% endif %}
-  </section>
-  {% endfor %}
-</main></body></html>
+    <footer class="mono">PIXELPILOT · LOCALLY GENERATED TEST EVIDENCE · RUN {{ run.run_id }}</footer>
+  </main>
+  <script>
+    const toggle = document.getElementById("themeToggle");
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const dark = theme === "dark"; toggle.setAttribute("aria-pressed", String(dark));
+      toggle.setAttribute("aria-label", dark ? "Use light theme" : "Use dark theme");
+      try { localStorage.setItem("pixelpilot-theme", theme); } catch (_error) { /* Theme remains active. */ }
+    }
+    toggle.addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+    applyTheme(document.documentElement.dataset.theme);
+  </script>
+</body>
+</html>

@@ -7,3 +7,5 @@
 - Small typed functions. No TODOs, no stubs, no dead code.
 - Record decisions in docs/DECISIONS.md. Commit per milestone (conventional commits).
 - ZERO-SPACE MODE: system Chrome only (channel="chrome"), never run `playwright install`. No numpy/scipy/imagehash. Keep total repo+venv under 400 MB.
+
+- UI work: always use $ui-craft and $frontend-design, follow docs/DESIGN.md tokens, run the ui-craft checklist before finishing.

@@ -83,3 +83,11 @@ def doctor() -> None:
     typer.echo(f"Gemini model: {settings.vlm_model}")
     typer.echo(f"Gemini HTTP: {live_result}")
     raise typer.Exit(code=0 if chrome_ok and gemini_ok and live_ok else 1)
+
+
+@app.command()
+def dashboard() -> None:
+    """Serve the local run instrument panel on 127.0.0.1:8100."""
+    import uvicorn
+
+    uvicorn.run("pixelpilot.dashboard.app:app", host="127.0.0.1", port=8100)

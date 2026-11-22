@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -46,6 +47,7 @@ from pixelpilot.vision.prompts import grounding_prompt, verification_prompt
 MAX_STEPS = 25
 STEP_TIMEOUT_SECONDS = 20.0
 STEP_RETRIES = 2
+StepCallback = Callable[[StepRecord], Awaitable[None] | None]
 
 
 class Orchestrator:
@@ -81,8 +83,10 @@ class Orchestrator:
         mutate: bool = False,
         headless: bool = True,
         runs_dir: Path = Path("runs"),
+        run_id: str | None = None,
+        on_step: StepCallback | None = None,
     ) -> RunRecord:
-        run_id = uuid.uuid4().hex[:12]
+        current_run_id = run_id or uuid.uuid4().hex[:12]
         url = _with_mutation(base_url, mutate)
         plan_res = self.planner.plan(story_path.read_text(), url)
         plan = await plan_res if inspect.isawaitable(plan_res) else plan_res
@@ -93,10 +97,16 @@ class Orchestrator:
             "pixelpilot.run", attributes={"story": plan.story}
         ) as root_span:
             current_trace_id = trace_id(root_span)
-            async with BrowserSession(run_id, headless=headless, runs_dir=runs_dir) as session:
+            async with BrowserSession(
+                current_run_id, headless=headless, runs_dir=runs_dir
+            ) as session:
                 for step in plan.steps:
                     record = await self._execute_step(session, plan.story, step.number, step.action)
                     records.append(record)
+                    if on_step is not None:
+                        callback_result = on_step(record)
+                        if inspect.isawaitable(callback_result):
+                            await callback_result
                     if not record.success:
                         break
                 with self.tracer.start_as_current_span("agent.verifier") as verify_span:
@@ -118,14 +128,14 @@ class Orchestrator:
             passed = all(record.success for record in records) and verification.passed
             root_span.set_attribute("pass", passed)
         result = RunRecord(
-            run_id=run_id,
+            run_id=current_run_id,
             story=plan.story,
             trace_id=current_trace_id,
             passed=passed,
             evidence=verification.evidence,
             steps=tuple(records),
         )
-        output = runs_dir / run_id / "run.json"
+        output = runs_dir / current_run_id / "run.json"
         output.write_text(result.model_dump_json(indent=2))
         return result
 

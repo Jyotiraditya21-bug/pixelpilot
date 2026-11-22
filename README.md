@@ -49,10 +49,17 @@ The important commands are:
 
 - `make check`: Ruff, strict mypy, and all non-VLM tests.
 - `make demo`: local FastAPI shop on port 8000.
+- `make ui`: local dashboard on `http://127.0.0.1:8100`.
 - `pixelpilot run STORY [--mutate]`: execute one story in system Chrome.
 - `pixelpilot bench`: run three repetitions per story for mutation off and on.
 - `pixelpilot report RUN_ID`: regenerate the run’s HTML evidence.
 - `pixelpilot doctor`: check system Chrome and make one minimal live Gemini call.
+
+## Dashboard
+
+Run `make ui`, then open `http://127.0.0.1:8100` for a warm-paper instrument view of live steps, grounding overlays, healing, latency, and verifier evidence.  
+The light-first interface uses one deep signal accent and labeled tier colors so provenance and failures scan like a laboratory log rather than a generic dashboard.  
+Saved replay, scrubbing, and two-run tier comparison read existing run JSON only, making a vision-to-cache heal visible without another Gemini call.
 
 ## Planner & Test Fixtures
 

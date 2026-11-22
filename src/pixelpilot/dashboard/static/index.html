@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PixelPilot — Run Instrument</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("pixelpilot-theme");
+      if (savedTheme === "dark" || savedTheme === "light") document.documentElement.dataset.theme = savedTheme;
+    } catch (_error) { document.documentElement.dataset.theme = "light"; }
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4efe4; --paper-raised: #fbf7ee; --paper-deep: #e8e0d2;
+      --ink: #171813; --ink-muted: #5d6058; --rule: #77786f; --rule-soft: #c3bcae;
+      --signal: #8b3b18; --signal-ink: #fbf7ee; --pass: #1f6a40; --fail: #a12c24;
+      --tier-cache: #4b5563; --tier-role: #22653f; --tier-dom: #00636b;
+      --tier-vision: #835000; --tier-replan: #8b2f3b; --tier-heal: #665500;
+      --canvas: #11120f; --canvas-grid: #35372f; --canvas-ink: #f4efe4;
+      --overlay: rgb(23 24 19 / 12%); --transparent: rgb(0 0 0 / 0%);
+      --font-display: "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px;
+      --sp-8: 32px; --sp-12: 48px; --touch: 44px; --header-h: 64px;
+      --console-w: 292px; --history-w: 280px; --timeline-min: 250px;
+      --timeline-height: 240px; --state-height: 160px; --toast-max: 360px; --table-min: 620px;
+      --page-min: 320px; --tier-min: 160px; --replay-min: 120px; --measure: 75ch;
+      --radius-control: 2px; --radius-frame: 4px; --hairline: 1px; --rule-heavy: 2px;
+      --focus-w: 3px; --ease: cubic-bezier(.2,.8,.2,1); --dur-fast: 120ms;
+      --dur-base: 200ms; --dur-slow: 400ms; --stagger: 40ms;
+      --delay-1: 40ms; --delay-2: 80ms; --delay-3: 120ms; --offstage: 12px;
+      --z-toast: 20; --z-overlay: 5; --lift: -1px; --shake: 5px;
+      --body-size: 1rem; --small-size: .8125rem; --micro-size: .75rem;
+      --display-size: clamp(1.125rem, 2vw, 1.375rem); --line-body: 1.5;
+      --stamp-size: 1.25rem;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --paper: #15130f; --paper-raised: #201d17; --paper-deep: #2b271f;
+      --ink: #f2ecdf; --ink-muted: #b9b2a5; --rule: #8a8376; --rule-soft: #4a453d;
+      --signal: #f0a56a; --signal-ink: #15130f; --pass: #79d49f; --fail: #ff9489;
+      --tier-cache: #c5cbd3; --tier-role: #7ed3a1; --tier-dom: #71d4dc;
+      --tier-vision: #f3bd68; --tier-replan: #ff9aa8; --tier-heal: #d9c96b;
+      --canvas: #0c0d0b; --canvas-grid: #34362f; --canvas-ink: #f2ecdf;
+      --overlay: rgb(242 236 223 / 10%); --transparent: rgb(255 255 255 / 0%);
+    }
+    * { box-sizing: border-box; }
+    html { min-width: var(--page-min); background: var(--paper); color: var(--ink); }
+    body { margin: 0; overflow-x: hidden; font: var(--body-size)/var(--line-body) system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, select { color: inherit; font: inherit; }
+    button, input, select, a { -webkit-tap-highlight-color: var(--transparent); }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+      outline: var(--focus-w) solid var(--signal); outline-offset: var(--sp-1);
+    }
+    button:disabled { cursor: not-allowed; opacity: .58; }
+    h1, h2, h3 { margin: 0; font-family: var(--font-display); letter-spacing: .055em; line-height: 1.1; text-transform: uppercase; }
+    p { max-width: var(--measure); }
+    .mono, code, kbd, .tag, .metric-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+    .sr-only { position: absolute; width: var(--hairline); height: var(--hairline); padding: 0; margin: calc(var(--hairline) * -1); overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .masthead { min-height: var(--header-h); position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); background: var(--paper-raised); }
+    .masthead::after { content: ""; position: absolute; inset: auto 0 0; height: var(--rule-heavy); background: var(--ink); transform: scaleX(0); transform-origin: left; animation: rule-draw var(--dur-slow) var(--ease) forwards; }
+    .brand { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; }
+    .brand h1 { font-size: var(--display-size); }
+    .brand small { color: var(--ink-muted); font: var(--micro-size) var(--font-mono); white-space: nowrap; }
+    .head-tools { display: flex; align-items: center; gap: var(--sp-3); }
+    .system-state { color: var(--signal); font: 700 var(--micro-size) var(--font-mono); letter-spacing: .08em; }
+    .icon-button { min-width: var(--touch); min-height: var(--touch); display: inline-grid; place-items: center; border: var(--hairline) solid var(--rule); border-radius: var(--radius-control); background: var(--paper); cursor: pointer; }
+    .icon-button svg { width: var(--sp-4); height: var(--sp-4); fill: none; stroke: currentColor; stroke-width: 1.75; }
+    .layout { min-height: calc(100vh - var(--header-h)); display: grid; grid-template-columns: var(--console-w) minmax(0,1fr) var(--history-w); }
+    .pane { min-width: 0; padding: var(--sp-4); background: var(--paper-raised); opacity: 0; transform: translateY(var(--offstage)); animation: panel-in var(--dur-slow) var(--ease) forwards; }
+    .console { animation-delay: var(--delay-1); }
+    .trace { animation-delay: var(--delay-2); }
+    .history { animation-delay: var(--delay-3); }
+    .console { border-right: var(--hairline) solid var(--rule-soft); }
+    .trace { background: var(--paper); }
+    .history { border-left: var(--hairline) solid var(--rule-soft); }
+    .pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); padding-bottom: var(--sp-2); margin-bottom: var(--sp-4); border-bottom: var(--hairline) solid var(--rule); }
+    .pane-head h2 { font-size: var(--body-size); }
+    .index { color: var(--signal); font: 700 var(--micro-size) var(--font-mono); }
+    form { display: grid; gap: var(--sp-4); }
+    label { display: grid; gap: var(--sp-1); color: var(--ink-muted); font-size: var(--small-size); font-weight: 700; }
+    select, input[type="url"] { width: 100%; min-height: var(--touch); border: var(--hairline) solid var(--rule); border-radius: var(--radius-control); padding: var(--sp-2); background: var(--paper); }
+    fieldset { display: grid; gap: var(--sp-2); margin: 0; padding: 0; border: 0; }
+    .switch { min-height: var(--touch); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-2); border: var(--hairline) solid var(--rule-soft); border-radius: var(--radius-control); background: var(--paper-deep); color: var(--ink); }
+    .switch input { width: var(--sp-4); height: var(--sp-4); accent-color: var(--signal); }
+    .run-button { position: relative; min-height: var(--touch); overflow: hidden; border: var(--hairline) solid var(--signal); border-radius: var(--radius-control); background: var(--signal); color: var(--signal-ink); font-weight: 800; letter-spacing: .075em; text-transform: uppercase; cursor: pointer; }
+    .run-button::before { content: ""; position: absolute; inset: 0; background: var(--overlay); opacity: 0; transform: translateX(-100%); }
+    .run-button[data-running="true"]::before { opacity: 1; animation: run-sweep var(--dur-slow) linear infinite; }
+    .run-button-content { position: relative; z-index: var(--z-overlay); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); }
+    .run-clock { display: none; font-family: var(--font-mono); }
+    .run-button[data-running="true"] .run-label { text-align: left; }
+    .run-button[data-running="true"] .run-clock { display: inline; }
+    .status-block { margin-top: var(--sp-6); padding-top: var(--sp-3); border-top: var(--rule-heavy) double var(--rule); }
+    .status-line { margin: 0 0 var(--sp-2); color: var(--ink-muted); font: var(--small-size)/var(--line-body) var(--font-mono); overflow-wrap: anywhere; }
+    .status-line[data-state="error"] { color: var(--fail); }
+    .status-line[data-state="finished"] { color: var(--pass); }
+    .status-error-help { display: none; margin: var(--sp-2) 0 0; color: var(--ink-muted); font-size: var(--small-size); }
+    .status-block[data-state="error"] .status-error-help { display: block; }
+    .legend { display: grid; gap: var(--sp-2); margin-top: var(--sp-8); color: var(--ink-muted); font: var(--micro-size) var(--font-mono); }
+    kbd { min-width: var(--sp-6); display: inline-block; padding: var(--sp-1); border: var(--hairline) solid var(--rule); border-bottom-width: var(--rule-heavy); text-align: center; color: var(--ink); }
+    .telemetry { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) minmax(var(--tier-min),2fr); margin-bottom: var(--sp-4); border: var(--hairline) solid var(--rule-soft); background: var(--paper-raised); }
+    .metric { min-width: 0; padding: var(--sp-2) var(--sp-3); border-right: var(--hairline) solid var(--rule-soft); }
+    .metric:last-child { border-right: 0; }
+    .metric-label { display: block; color: var(--ink-muted); font: var(--micro-size) var(--font-mono); text-transform: uppercase; }
+    .metric-value { display: block; margin-top: var(--sp-1); font-weight: 800; }
+    .tier-bar { height: var(--sp-2); display: flex; margin-top: var(--sp-2); overflow: hidden; background: var(--paper-deep); }
+    .tier-segment { height: 100%; min-width: 0; }
+    .tier-segment.cache { background: var(--tier-cache); } .tier-segment.role { background: var(--tier-role); }
+    .tier-segment.dom { background: var(--tier-dom); } .tier-segment.vision { background: var(--tier-vision); }
+    .tier-segment.replan { background: var(--tier-replan); }
+    .trace-grid { display: grid; grid-template-columns: minmax(var(--timeline-min),36%) minmax(0,1fr); gap: var(--sp-4); align-items: start; }
+    .timeline { min-height: var(--timeline-height); position: relative; }
+    .empty, .loading-state { min-height: var(--state-height); display: grid; align-content: center; gap: var(--sp-3); padding: var(--sp-6); border: var(--hairline) dashed var(--rule); color: var(--ink-muted); }
+    .empty h3, .loading-state h3 { color: var(--ink); font-size: var(--body-size); }
+    .empty p, .loading-state p { margin: 0; font-size: var(--small-size); }
+    .skeleton { height: var(--sp-3); position: relative; overflow: hidden; background: var(--paper-deep); }
+    .skeleton.short { width: 62%; }
+    .skeleton::after { content: ""; position: absolute; inset: 0; background: var(--overlay); transform: translateX(-100%); animation: skeleton-shimmer var(--dur-slow) var(--ease) 3; }
+    .error-once { animation: error-shake var(--dur-slow) var(--ease) 1; }
+    .step { width: 100%; position: relative; display: grid; grid-template-columns: var(--sp-8) minmax(0,1fr); gap: var(--sp-2); padding: var(--sp-2) 0; border: 0; background: var(--transparent); color: inherit; text-align: left; cursor: pointer; }
+    .step.entering { opacity: 0; transform: translateX(calc(var(--offstage) * -1)); animation: step-in var(--dur-base) var(--ease) forwards; }
+    .step:not(:last-child)::after { content: ""; position: absolute; left: calc(var(--sp-2) + var(--sp-1) + var(--hairline)); top: var(--sp-6); bottom: calc(var(--sp-2) * -1); border-left: var(--hairline) solid var(--rule); transform: scaleY(0); transform-origin: top; animation: connector-draw var(--dur-base) var(--ease) forwards; }
+    .step-marker { position: relative; z-index: var(--z-overlay); width: var(--sp-3); height: var(--sp-3); margin: var(--sp-1) 0 0 var(--sp-2); border: var(--rule-heavy) solid var(--rule); background: var(--paper-raised); transform: rotate(45deg); }
+    .step.selected .step-marker { border-color: var(--signal); background: var(--signal); }
+    .step-body { min-width: 0; padding: 0 var(--sp-2) var(--sp-2); border-left: var(--rule-heavy) solid var(--transparent); }
+    .step.selected .step-body { border-left-color: var(--signal); }
+    .step-intent { display: block; margin: 0 0 var(--sp-2); color: var(--ink); font-size: var(--small-size); font-weight: 700; overflow-wrap: anywhere; }
+    .step-meta { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); align-items: center; color: var(--ink-muted); font: var(--micro-size) var(--font-mono); }
+    .tag { display: inline-flex; align-items: center; min-height: var(--sp-6); padding: 0 var(--sp-2); border: var(--hairline) solid currentColor; font-size: var(--micro-size); text-transform: uppercase; }
+    .entering .tag:first-child { transform: rotateX(90deg); animation: tag-flip var(--dur-base) var(--ease) var(--delay-1) forwards; }
+    .tier-cached_locator { color: var(--tier-cache); } .tier-role_name { color: var(--tier-role); }
+    .tier-dom_text { color: var(--tier-dom); } .tier-vlm_bbox { color: var(--tier-vision); }
+    .tier-replan { color: var(--tier-replan); } .tier-direct { color: var(--ink-muted); }
+    .heal { color: var(--tier-heal); } .pass { color: var(--pass); } .fail { color: var(--fail); }
+    .heal-once .step-marker::after { content: ""; position: absolute; inset: calc(var(--sp-2) * -1); border: var(--rule-heavy) solid var(--tier-heal); border-radius: 50%; opacity: 0; transform: scale(.6) rotate(-45deg); animation: heal-ring var(--dur-slow) var(--ease) 1; }
+    .viewport { min-width: 0; }
+    .screen-frame { overflow: hidden; border: var(--hairline) solid var(--rule); border-radius: var(--radius-frame); background: var(--canvas); }
+    .screen-bar { min-height: var(--sp-8); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); border-bottom: var(--hairline) solid var(--rule); color: var(--canvas-ink); font: var(--micro-size) var(--font-mono); }
+    canvas { display: block; width: 100%; max-width: 100%; height: auto; aspect-ratio: 1280/900; opacity: 1; transition: opacity var(--dur-base) var(--ease); }
+    canvas.loading { opacity: .35; }
+    .screen-detail { padding: var(--sp-3); border: var(--hairline) solid var(--rule-soft); border-top: 0; color: var(--ink-muted); font-size: var(--small-size); overflow-wrap: anywhere; }
+    .verifier { display: none; margin-top: var(--sp-4); padding: var(--sp-4); border: var(--rule-heavy) solid var(--rule); background: var(--paper-raised); }
+    .verifier[data-visible="true"] { display: block; opacity: 0; transform: translateY(var(--offstage)); animation: verifier-in var(--dur-slow) var(--ease) forwards; }
+    .stamp { display: inline-block; padding: var(--sp-1) var(--sp-3); border: var(--rule-heavy) solid currentColor; font: 900 var(--stamp-size) var(--font-display); letter-spacing: .1em; opacity: 0; transform: rotate(-2deg) scale(1.25); }
+    .verifier[data-visible="true"] .stamp { animation: stamp-in var(--dur-slow) var(--ease) var(--delay-1) forwards; }
+    .verifier-evidence { margin: var(--sp-3) 0 0; overflow-wrap: anywhere; opacity: 0; transform: translateY(calc(var(--offstage) * -1)); }
+    .verifier[data-visible="true"] .verifier-evidence { animation: evidence-in var(--dur-base) var(--ease) var(--delay-2) forwards; }
+    .replay-panel, .compare-panel { display: none; margin-top: var(--sp-4); padding: var(--sp-4); border: var(--hairline) solid var(--rule); background: var(--paper-raised); }
+    .replay-panel[data-visible="true"], .compare-panel[data-visible="true"] { display: block; }
+    .tool-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+    .tool-head h3 { font-size: var(--body-size); }
+    .replay-controls { display: grid; grid-template-columns: auto minmax(var(--replay-min),1fr) auto; gap: var(--sp-2); align-items: center; }
+    .replay-controls select, .replay-controls button { min-height: var(--touch); }
+    .replay-controls input[type="range"] { width: 100%; accent-color: var(--signal); }
+    .compare-table-wrap { max-width: 100%; overflow-x: auto; border: var(--hairline) solid var(--rule-soft); }
+    .compare-table { width: 100%; min-width: var(--table-min); border-collapse: collapse; font-size: var(--small-size); }
+    .compare-table th, .compare-table td { padding: var(--sp-2); border-bottom: var(--hairline) solid var(--rule-soft); text-align: left; vertical-align: top; }
+    .compare-table th { background: var(--paper-deep); font-family: var(--font-mono); }
+    .compare-table tr.changed td { background: var(--overlay); }
+    .diff-note { color: var(--signal); font: 700 var(--micro-size) var(--font-mono); }
+    .history-list { display: grid; min-height: 180px; }
+    .history-item { display: grid; gap: var(--sp-2); padding: var(--sp-3) 0; border-bottom: var(--hairline) solid var(--rule-soft); opacity: 0; transform: translateX(var(--offstage)); animation: history-in var(--dur-base) var(--ease) forwards; animation-delay: calc(var(--row-index,0) * var(--stagger)); transition: transform var(--dur-fast) var(--ease); }
+    .history-item:hover, .history-item:focus-within { border-bottom-color: var(--signal); transform: translateY(var(--lift)); }
+    .history-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+    .history-title { font-size: var(--small-size); font-weight: 800; overflow-wrap: anywhere; }
+    .history-item p { margin: 0; color: var(--ink-muted); font: var(--micro-size)/var(--line-body) var(--font-mono); overflow-wrap: anywhere; }
+    .history-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+    .text-button, .history-item a { min-height: var(--touch); display: inline-flex; align-items: center; padding: 0 var(--sp-2); border: var(--hairline) solid var(--rule); border-radius: var(--radius-control); background: var(--paper); color: var(--ink); font-size: var(--small-size); text-decoration: none; cursor: pointer; }
+    .compare-check { min-height: var(--touch); display: flex; grid-template-columns: auto 1fr; align-items: center; gap: var(--sp-2); color: var(--ink); font-size: var(--small-size); }
+    .compare-check input { width: var(--sp-4); height: var(--sp-4); accent-color: var(--signal); }
+    .history-tools { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+    .history-tools button { width: 100%; }
+    .toast { position: fixed; z-index: var(--z-toast); right: var(--sp-4); bottom: var(--sp-4); max-width: min(var(--toast-max),calc(100vw - var(--sp-8))); padding: var(--sp-3) var(--sp-4); border: var(--rule-heavy) solid var(--tier-heal); background: var(--paper-raised); color: var(--tier-heal); font: 700 var(--small-size) var(--font-mono); opacity: 0; pointer-events: none; transform: translateY(var(--sp-3)); transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease); }
+    .toast[data-visible="true"] { opacity: 1; transform: translateY(0); }
+    @keyframes skeleton-shimmer { to { transform: translateX(100%); } }
+    @keyframes error-shake { 25% { transform: translateX(calc(var(--shake) * -1)); } 50% { transform: translateX(var(--shake)); } 75% { transform: translateX(calc(var(--shake) * -.5)); } }
+    @keyframes rule-draw { to { transform: scaleX(1); } }
+    @keyframes panel-in { to { opacity: 1; transform: translateY(0); } }
+    @keyframes run-sweep { to { transform: translateX(100%); } }
+    @keyframes step-in { to { opacity: 1; transform: translateX(0); } }
+    @keyframes connector-draw { to { transform: scaleY(1); } }
+    @keyframes tag-flip { to { transform: rotateX(0); } }
+    @keyframes heal-ring { 40% { opacity: 1; } 100% { opacity: 0; transform: scale(1.7) rotate(-45deg); } }
+    @keyframes verifier-in { to { opacity: 1; transform: translateY(0); } }
+    @keyframes stamp-in { to { opacity: 1; transform: rotate(-2deg) scale(1); } }
+    @keyframes evidence-in { to { opacity: 1; transform: translateY(0); } }
+    @keyframes history-in { to { opacity: 1; transform: translateX(0); } }
+    @media (max-width: 1040px) {
+      .layout { grid-template-columns: var(--console-w) minmax(0,1fr); }
+      .history { grid-column: 1/-1; border-top: var(--rule-heavy) double var(--rule); border-left: 0; }
+      .history-list { grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: var(--sp-6); }
+    }
+    @media (max-width: 720px) {
+      .layout { display: block; }
+      .pane { border: 0; border-bottom: var(--rule-heavy) double var(--rule); }
+      .trace-grid { grid-template-columns: 1fr; }
+      .replay-controls { grid-template-columns: 1fr; }
+      .history-list { grid-template-columns: 1fr; }
+      .telemetry { grid-template-columns: repeat(3,minmax(0,1fr)); }
+      .metric:last-child { grid-column: 1/-1; border-top: var(--hairline) solid var(--rule-soft); }
+    }
+    @media (max-width: 420px) {
+      .masthead { align-items: flex-start; }
+      .brand { display: grid; gap: var(--sp-1); }
+      .pane { padding: var(--sp-3); }
+      .telemetry { grid-template-columns: 1fr 1fr 1fr; }
+      .metric { padding: var(--sp-2); }
+      .metric-label { overflow-wrap: anywhere; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand"><h1>PixelPilot</h1><small>RUN INSTRUMENT / LOCAL 8100</small></div>
+    <div class="head-tools">
+      <span class="system-state" id="systemState">READY</span>
+      <button class="icon-button" id="themeToggle" type="button" aria-label="Use dark theme" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="layout">
+    <aside class="pane console" aria-labelledby="consoleTitle">
+      <div class="pane-head"><h2 id="consoleTitle">Run console</h2><span class="index">01 / INPUT</span></div>
+      <form id="runForm">
+        <label for="story">Story profile<select id="story" name="story" required disabled><option>Loading stories…</option></select></label>
+        <label for="url">Target URL<input id="url" name="url" type="url" value="http://127.0.0.1:8000" required></label>
+        <fieldset aria-label="Run modes">
+          <label class="switch" for="mutate"><span>Mutate interface</span><input id="mutate" name="mutate" type="checkbox"></label>
+          <label class="switch" for="vlmOnly"><span>VLM-only grounding</span><input id="vlmOnly" name="vlm_only" type="checkbox"></label>
+        </fieldset>
+        <button class="run-button" id="runButton" type="submit" disabled data-running="false">
+          <span class="run-button-content"><span class="run-label">Run story</span><span class="run-clock">00:00</span></span>
+        </button>
+      </form>
+      <div class="status-block" id="statusBlock" data-state="loading">
+        <p class="status-line" id="runStatus" data-state="loading">Loading story index…</p>
+        <p class="status-line" id="runId">RUN —</p>
+        <p class="status-error-help">Check the exact exception above, correct the target or local service, then run again.</p>
+      </div>
+      <div class="legend" aria-label="Keyboard shortcuts"><div><kbd>R</kbd> run story</div><div><kbd>J</kbd> next step</div><div><kbd>K</kbd> previous step</div></div>
+    </aside>
+
+    <section class="pane trace" aria-labelledby="traceTitle">
+      <div class="pane-head"><h2 id="traceTitle">Live trace</h2><span class="index">02 / TELEMETRY</span></div>
+      <section class="telemetry" aria-label="Live run metrics">
+        <div class="metric"><span class="metric-label">Steps</span><strong class="metric-value" id="stepCount">0</strong></div>
+        <div class="metric"><span class="metric-label">Heals</span><strong class="metric-value" id="healCount">0</strong></div>
+        <div class="metric"><span class="metric-label">VLM total</span><strong class="metric-value" id="vlmTotal">0 ms</strong></div>
+        <div class="metric"><span class="metric-label">Tier distribution</span><div class="tier-bar" id="tierBar" aria-label="No grounding tiers recorded"></div></div>
+      </section>
+      <div class="trace-grid">
+        <div class="timeline" id="timeline">
+          <div class="empty"><h3>No run selected</h3><p>Choose a story and start a run. Ordered action evidence will appear here.</p></div>
+        </div>
+        <div class="viewport">
+          <div class="screen-frame">
+            <div class="screen-bar"><span id="screenLabel">GROUND VIEW / NO SIGNAL</span><span id="screenMetric">1280 × 900</span></div>
+            <canvas id="screen" width="1280" height="900" aria-label="Current browser screenshot with grounding target overlay"></canvas>
+          </div>
+          <div class="screen-detail" id="screenDetail">Select a recorded step to inspect its screenshot, target bounds, and exact action result.</div>
+        </div>
+      </div>
+      <section class="verifier" id="verifier" data-visible="false" aria-labelledby="verifierTitle">
+        <h3 id="verifierTitle" class="stamp">Run finished</h3><p class="verifier-evidence" id="verifierEvidence"></p>
+      </section>
+      <section class="replay-panel" id="replayPanel" data-visible="false" aria-labelledby="replayTitle">
+        <div class="tool-head"><h3 id="replayTitle">Saved run replay</h3><span class="mono" id="replayPosition">STEP —</span></div>
+        <div class="replay-controls">
+          <button class="text-button" id="replayToggle" type="button">Pause replay</button>
+          <label for="replayScrub" class="sr-only">Replay step</label><input id="replayScrub" type="range" min="0" max="0" value="0">
+          <label for="replaySpeed">Speed<select id="replaySpeed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+        </div>
+      </section>
+      <section class="compare-panel" id="comparePanel" data-visible="false" aria-labelledby="compareTitle">
+        <div class="tool-head"><h3 id="compareTitle">Grounding tier comparison</h3><button class="text-button" id="closeCompare" type="button">Close</button></div>
+        <div class="compare-table-wrap" id="compareTable"></div>
+      </section>
+    </section>
+
+    <aside class="pane history" aria-labelledby="historyTitle">
+      <div class="pane-head"><h2 id="historyTitle">Run history</h2><span class="index">03 / ARCHIVE</span></div>
+      <div class="history-tools"><button class="text-button" id="compareButton" type="button" disabled>Compare selected runs</button></div>
+      <div class="history-list" id="historyList" aria-busy="true">
+        <div class="loading-state"><h3>Reading run archive</h3><div class="skeleton"></div><div class="skeleton short"></div></div>
+      </div>
+    </aside>
+  </main>
+  <div class="toast" id="healToast" role="status" aria-live="polite">Healed, cached for the next run.</div>
+  <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+  <script>
+    const state = { runId: null, steps: [], selected: -1, source: null, clock: null, startedAt: 0, runs: [], replayTimer: null, replayPlaying: false, healedSteps: new Set(), screenRequest: 0 };
+    const el = id => document.getElementById(id);
+    const tierLabels = { cached_locator: "CACHED", role_name: "ROLE / NAME", dom_text: "DOM TEXT", vlm_bbox: "VISION", replan: "REPLAN", direct: "DIRECT" };
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const dark = theme === "dark";
+      el("themeToggle").setAttribute("aria-pressed", String(dark));
+      el("themeToggle").setAttribute("aria-label", dark ? "Use light theme" : "Use dark theme");
+      try { localStorage.setItem("pixelpilot-theme", theme); } catch (_error) { /* Theme still works for this page. */ }
+      if (state.selected >= 0) drawScreenshot(state.steps[state.selected]); else clearScreen();
+    }
+
+    function setRunState(mode, message) {
+      el("runStatus").dataset.state = mode;
+      el("statusBlock").dataset.state = mode;
+      el("runStatus").textContent = message;
+      el("systemState").textContent = mode === "loading" || mode === "running" ? "RUNNING" : mode.toUpperCase();
+      el("announcer").textContent = message;
+    }
+
+    async function loadStories() {
+      try {
+        const response = await fetch("/api/stories");
+        if (!response.ok) throw new Error(`Stories HTTP ${response.status}`);
+        const stories = await response.json();
+        const select = el("story"); select.replaceChildren();
+        stories.forEach(item => { const option = document.createElement("option"); option.value = item.path; option.textContent = item.title; select.append(option); });
+        select.disabled = false; el("runButton").disabled = false; setRunState("empty", "Ready. Select a story and run mode.");
+      } catch (error) {
+        el("story").replaceChildren(new Option("Stories unavailable", ""));
+        setRunState("error", formatError(error));
+      }
+    }
+
+    async function loadHistory() {
+      const list = el("historyList"); list.setAttribute("aria-busy", "true");
+      try {
+        const response = await fetch("/api/runs");
+        if (!response.ok) throw new Error(`History HTTP ${response.status}`);
+        state.runs = await response.json(); list.replaceChildren();
+        if (!state.runs.length) list.append(emptyNode("No saved runs", "Completed runs will appear here with evidence and replay controls."));
+        else state.runs.forEach((run, index) => list.append(historyNode(run, index)));
+      } catch (error) { list.replaceChildren(emptyNode("Archive unavailable", formatError(error), true)); }
+      finally { list.setAttribute("aria-busy", "false"); }
+    }
+
+    function emptyNode(title, message, failed = false) {
+      const node = document.createElement("div"); node.className = `empty${failed ? " fail" : ""}`;
+      const heading = document.createElement("h3"); heading.textContent = title;
+      const copy = document.createElement("p"); copy.textContent = message; node.append(heading, copy); return node;
+    }
+
+    function historyNode(run, index) {
+      const node = document.createElement("article"); node.className = "history-item"; node.dataset.runId = run.run_id;
+      node.style.setProperty("--row-index", String(Math.min(index, 10)));
+      const top = document.createElement("div"); top.className = "history-top";
+      const title = document.createElement("span"); title.className = "history-title"; title.textContent = run.story;
+      const result = document.createElement("strong"); result.className = `${run.pass ? "pass" : run.status === "running" ? "" : "fail"} mono`; result.textContent = run.status.toUpperCase(); top.append(title, result);
+      const meta = document.createElement("p"); meta.textContent = `${run.run_id} · VLM ${Number(run.vlm_ms).toFixed(0)} ms`;
+      const trace = document.createElement("p"); trace.textContent = `TRACE ${run.trace_id || "pending"}`;
+      const actions = document.createElement("div"); actions.className = "history-actions";
+      const replay = document.createElement("button"); replay.type = "button"; replay.className = "text-button replay-run"; replay.textContent = "Replay"; replay.disabled = !run.report; replay.dataset.runId = run.run_id;
+      replay.addEventListener("click", () => loadReplay(run.run_id));
+      actions.append(replay);
+      if (run.report) { const link = document.createElement("a"); link.href = run.report; link.textContent = "Report"; actions.append(link); }
+      const compareLabel = document.createElement("label"); compareLabel.className = "compare-check";
+      const compare = document.createElement("input"); compare.type = "checkbox"; compare.value = run.run_id; compare.disabled = !run.report; compare.className = "compare-select";
+      compare.addEventListener("change", () => updateCompareSelection(compare));
+      compareLabel.append(compare, document.createTextNode("Compare")); actions.append(compareLabel);
+      node.append(top, meta, trace);
+      if (run.error) { const error = document.createElement("p"); error.className = "fail"; error.textContent = run.error; node.append(error); }
+      node.append(actions); return node;
+    }
+
+    async function startRun(event) {
+      if (event) event.preventDefault();
+      if (state.source) state.source.close();
+      stopReplay(); el("replayPanel").dataset.visible = "false"; stopClock(); state.steps = []; state.healedSteps.clear(); state.selected = -1; renderTimeline("loading"); updateMetrics(); clearScreen();
+      el("verifier").dataset.visible = "false"; el("runButton").disabled = true; el("runButton").dataset.running = "true";
+      el("runButton").querySelector(".run-label").textContent = "Run in progress"; startClock(); setRunState("loading", "Starting browser and planner…");
+      try {
+        const response = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ story: el("story").value, url: el("url").value, mutate: el("mutate").checked, vlm_only: el("vlmOnly").checked }) });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || `Run HTTP ${response.status}`);
+        state.runId = payload.run_id; el("runId").textContent = `RUN ${state.runId}`; setRunState("running", "Run accepted. Waiting for the first step…");
+        connectEvents(); await loadHistory();
+      } catch (error) { finishWithError(error); }
+    }
+
+    function connectEvents() {
+      state.source = new EventSource(`/api/runs/${state.runId}/events`);
+      state.source.addEventListener("step", event => {
+        const step = JSON.parse(event.data); state.steps.push(step); state.selected = state.steps.length - 1;
+        renderTimeline(); selectStep(state.selected); updateMetrics(); setRunState("running", `Step ${step.step}: ${step.intent}`);
+        el("announcer").textContent = `Step ${step.step} ${step.pass ? "passed" : "failed"} using ${tierLabels[step.tier] || step.tier}`;
+        if (step.healed) showHealToast();
+      });
+      state.source.addEventListener("finished", event => { const result = JSON.parse(event.data); finishRun(result); });
+      state.source.addEventListener("error", event => { if (event.data) finishWithError(JSON.parse(event.data).error); });
+    }
+
+    function finishRun(result) {
+      if (state.source) state.source.close(); stopClock(); resetRunButton();
+      const passed = Boolean(result.pass); setRunState("finished", `${passed ? "PASSED" : "FAILED"}: verifier complete`);
+      const stamp = el("verifierTitle"); stamp.textContent = passed ? "Passed" : "Failed"; stamp.className = `stamp ${passed ? "pass" : "fail"}`;
+      el("verifierEvidence").textContent = result.evidence; el("verifier").dataset.visible = "true"; loadHistory();
+    }
+
+    function finishWithError(error) {
+      if (state.source) state.source.close(); stopClock(); resetRunButton();
+      setRunState("error", formatError(error)); el("statusBlock").classList.remove("error-once"); void el("statusBlock").offsetWidth; el("statusBlock").classList.add("error-once"); loadHistory();
+    }
+
+    function resetRunButton() { el("runButton").disabled = false; el("runButton").dataset.running = "false"; el("runButton").querySelector(".run-label").textContent = "Run story"; }
+    function formatError(error) { return String(error instanceof Error ? `${error.name}: ${error.message}` : error); }
+    function startClock() { state.startedAt = Date.now(); updateClock(); state.clock = setInterval(updateClock, 1000); }
+    function stopClock() { if (state.clock) clearInterval(state.clock); state.clock = null; }
+    function updateClock() { const elapsed = Math.floor((Date.now() - state.startedAt) / 1000); el("runButton").querySelector(".run-clock").textContent = `${String(Math.floor(elapsed / 60)).padStart(2,"0")}:${String(elapsed % 60).padStart(2,"0")}`; }
+
+    function renderTimeline(mode = "steps") {
+      const timeline = el("timeline"); timeline.replaceChildren();
+      if (mode === "loading") { const loading = document.createElement("div"); loading.className = "loading-state"; loading.innerHTML = "<h3>Preparing run</h3><div class='skeleton'></div><div class='skeleton short'></div>"; timeline.append(loading); return; }
+      if (!state.steps.length) { timeline.append(emptyNode("No step events", "The runner has not emitted action telemetry yet.")); return; }
+      state.steps.forEach((step, index) => timeline.append(stepNode(step, index)));
+      state.steps.filter(step => step.healed).forEach(step => state.healedSteps.add(step.step));
+      const entering = timeline.querySelectorAll(".entering .count-up");
+      requestAnimationFrame(() => entering.forEach(node => countText(node, Number(node.dataset.target), node.dataset.suffix || "")));
+    }
+
+    function stepNode(step, index) {
+      const newest = index === state.steps.length - 1;
+      const freshHeal = step.healed && !state.healedSteps.has(step.step);
+      const node = document.createElement("button"); node.type = "button"; node.className = `step${index === state.selected ? " selected" : ""}${newest ? " entering" : ""}${freshHeal ? " heal-once" : ""}`; node.setAttribute("aria-label", `Inspect step ${step.step}: ${step.intent}`); node.addEventListener("click", () => selectStep(index));
+      const marker = document.createElement("span"); marker.className = "step-marker"; marker.setAttribute("aria-hidden", "true");
+      const body = document.createElement("span"); body.className = "step-body";
+      const intent = document.createElement("span"); intent.className = "step-intent"; intent.textContent = `${String(step.step).padStart(2,"0")} / ${step.intent}`;
+      const meta = document.createElement("span"); meta.className = "step-meta";
+      const tier = document.createElement("span"); tier.className = `tag tier-${step.tier}`; tier.textContent = tierLabels[step.tier] || step.tier;
+      const result = document.createElement("strong"); result.className = step.pass ? "pass" : "fail"; result.textContent = step.pass ? "PASS" : "FAIL";
+      const latency = document.createElement("span"); latency.textContent = newest ? "0 ms VLM" : `${Number(step.vlm_ms).toFixed(0)} ms VLM`; latency.className = newest ? "count-up" : ""; latency.dataset.target = String(Number(step.vlm_ms)); latency.dataset.suffix = " ms VLM";
+      const confidence = document.createElement("span"); confidence.textContent = newest ? "0% CONF" : `${Math.round(Number(step.confidence) * 100)}% CONF`; confidence.className = newest ? "count-up" : ""; confidence.dataset.target = String(Math.round(Number(step.confidence) * 100)); confidence.dataset.suffix = "% CONF";
+      meta.append(tier, result, latency, confidence);
+      if (step.healed) { const heal = document.createElement("span"); heal.className = "tag heal"; heal.textContent = "HEALED"; meta.append(heal); }
+      body.append(intent, meta); node.append(marker, body); return node;
+    }
+
+    function selectStep(index) {
+      if (index < 0 || index >= state.steps.length) return;
+      state.selected = index; document.querySelectorAll(".step").forEach((node, position) => node.classList.toggle("selected", position === index));
+      const step = state.steps[index]; el("screenLabel").textContent = `GROUND VIEW / STEP ${String(step.step).padStart(2,"0")}`; el("screenDetail").textContent = step.detail || "No action detail supplied."; drawScreenshot(step);
+      if (el("replayPanel").dataset.visible === "true") { el("replayScrub").value = String(index); el("replayPosition").textContent = `STEP ${index + 1} / ${state.steps.length}`; }
+    }
+
+    function updateMetrics() {
+      countText(el("stepCount"), state.steps.length, "");
+      countText(el("healCount"), state.steps.filter(step => step.healed).length, "");
+      countText(el("vlmTotal"), state.steps.reduce((sum, step) => sum + Number(step.vlm_ms || 0), 0), " ms");
+      const counts = {}; state.steps.forEach(step => { counts[step.tier] = (counts[step.tier] || 0) + 1; });
+      const bar = el("tierBar"); bar.replaceChildren();
+      Object.entries(counts).forEach(([tier, count]) => { const segment = document.createElement("span"); segment.className = `tier-segment ${tierClass(tier)}`; segment.style.flex = String(count); segment.style.transformOrigin = "left"; segment.animate([{ transform: "scaleX(0)", opacity: 0 }, { transform: "scaleX(1)", opacity: 1 }], motionOptions()); segment.title = `${tierLabels[tier] || tier}: ${count}`; bar.append(segment); });
+      bar.setAttribute("aria-label", state.steps.length ? Object.entries(counts).map(([tier,count]) => `${tierLabels[tier] || tier} ${count}`).join(", ") : "No grounding tiers recorded");
+    }
+
+    function tierClass(tier) { return ({ cached_locator: "cache", role_name: "role", dom_text: "dom", vlm_bbox: "vision", replan: "replan" })[tier] || "cache"; }
+    function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    function reducedMotion() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+    function motionOptions() { return { duration: reducedMotion() ? 1 : Number.parseFloat(css("--dur-base")), easing: css("--ease"), fill: "both" }; }
+    function countText(node, target, suffix) {
+      const start = Number.parseFloat(node.textContent) || 0;
+      if (reducedMotion() || start === target) { node.textContent = `${Math.round(target)}${suffix}`; return; }
+      const began = performance.now(), duration = Number.parseFloat(css("--dur-slow"));
+      function frame(now) { const progress = Math.min(1, (now - began) / duration); node.textContent = `${Math.round(start + (target - start) * progress)}${suffix}`; if (progress < 1) requestAnimationFrame(frame); }
+      requestAnimationFrame(frame);
+    }
+
+    function clearScreen() {
+      const canvas = el("screen"), context = canvas.getContext("2d"); context.fillStyle = css("--canvas"); context.fillRect(0,0,canvas.width,canvas.height); context.strokeStyle = css("--canvas-grid"); context.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 64) { context.beginPath(); context.moveTo(x,0); context.lineTo(x,canvas.height); context.stroke(); }
+      for (let y = 0; y < canvas.height; y += 64) { context.beginPath(); context.moveTo(0,y); context.lineTo(canvas.width,y); context.stroke(); }
+    }
+
+    function drawScreenshot(step) {
+      if (!step.screenshot) { clearScreen(); return; }
+      const request = ++state.screenRequest, canvas = el("screen"), image = new Image(); canvas.classList.add("loading");
+      image.onload = () => { if (request !== state.screenRequest) return; canvas.width = image.naturalWidth; canvas.height = image.naturalHeight; const context = canvas.getContext("2d"); context.drawImage(image,0,0); canvas.classList.remove("loading"); requestAnimationFrame(() => animateTarget(context,canvas,image,step,request)); el("screenMetric").textContent = `${canvas.width} × ${canvas.height}`; };
+      image.onerror = () => { if (request !== state.screenRequest) return; canvas.classList.remove("loading"); el("screenDetail").textContent = "Screenshot unavailable: the saved image request failed."; };
+      image.src = `${step.screenshot}?t=${Date.now()}`;
+    }
+
+    function animateTarget(context, canvas, image, step, request) {
+      if (!step.bbox) return;
+      const box = scaledBox(canvas, step.bbox);
+      if (reducedMotion()) { context.drawImage(image,0,0); drawTarget(context,box,1,1); return; }
+      const began = performance.now(), duration = Number.parseFloat(css("--dur-slow")) * 2;
+      function frame(now) {
+        if (request !== state.screenRequest) return; const progress = Math.min(1,(now - began) / duration); context.drawImage(image,0,0); drawTarget(context,box,Math.min(1,progress * 2.4),progress);
+        if (progress < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function scaledBox(canvas, bbox) { const sx = canvas.width / 1280, sy = canvas.height / 900; return { x: bbox.x * sx, y: bbox.y * sy, width: bbox.width * sx, height: bbox.height * sy }; }
+
+    function drawTarget(context, box, lineProgress, totalProgress) {
+      const perimeter = 2 * (box.width + box.height), distance = perimeter * lineProgress;
+      context.strokeStyle = css("--signal"); context.lineWidth = 3; context.beginPath(); context.moveTo(box.x,box.y);
+      let remaining = distance;
+      const segments = [[box.width,box.x + box.width,box.y],[box.height,box.x + box.width,box.y + box.height],[box.width,box.x,box.y + box.height],[box.height,box.x,box.y]];
+      let currentX = box.x, currentY = box.y;
+      for (const [length,endX,endY] of segments) { if (remaining <= 0) break; if (length <= 0) continue; const part = Math.min(1,remaining / length); currentX += (endX - currentX) * part; currentY += (endY - currentY) * part; context.lineTo(currentX,currentY); remaining -= length; }
+      context.stroke();
+      if (totalProgress > .35) { const scanY = box.y + box.height * Math.min(1,(totalProgress - .35) / .4); context.globalAlpha = .35; context.beginPath(); context.moveTo(box.x,scanY); context.lineTo(box.x + box.width,scanY); context.stroke(); context.globalAlpha = 1; }
+      if (totalProgress > .55) { const ripple = (totalProgress - .55) / .45; context.globalAlpha = 1 - ripple; context.beginPath(); context.arc(box.x + box.width / 2,box.y + box.height / 2,8 + ripple * 24,0,Math.PI * 2); context.stroke(); context.globalAlpha = 1; }
+      if (totalProgress > .7) { context.globalAlpha = .45 + Math.sin(totalProgress * Math.PI * 8) * .15; context.strokeRect(box.x,box.y,box.width,box.height); context.globalAlpha = 1; context.fillStyle = css("--signal"); context.fillRect(box.x,Math.max(0,box.y - 22),68,22); context.fillStyle = css("--signal-ink"); context.font = "700 12px monospace"; context.fillText("TARGET",box.x + 7,Math.max(15,box.y - 7)); }
+    }
+
+    function showHealToast() { const toast = el("healToast"); toast.dataset.visible = "true"; setTimeout(() => { toast.dataset.visible = "false"; }, 2400); }
+    function toggleTheme() { applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"); }
+
+    async function loadReplay(runId) {
+      stopReplay(); setRunState("loading", `Loading saved run ${runId}…`);
+      try {
+        const data = await fetchSavedRun(runId); state.runId = data.run_id; state.steps = data.steps; state.healedSteps.clear(); state.selected = 0;
+        el("runId").textContent = `REPLAY ${data.run_id}`; el("replayPanel").dataset.visible = "true";
+        el("replayScrub").max = String(Math.max(0,state.steps.length - 1)); el("replayScrub").value = "0";
+        renderTimeline(); updateMetrics(); selectStep(0); showSavedVerifier(data); setRunState("finished", `Replaying saved run ${data.run_id}. No model calls.`); startReplay();
+      } catch (error) { finishWithError(error); }
+    }
+
+    async function fetchSavedRun(runId) {
+      const response = await fetch(`/api/runs/${runId}/steps`); const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || `Saved run HTTP ${response.status}`); return payload;
+    }
+
+    function showSavedVerifier(data) {
+      const stamp = el("verifierTitle"); stamp.textContent = data.pass ? "Passed" : "Failed"; stamp.className = `stamp ${data.pass ? "pass" : "fail"}`;
+      el("verifierEvidence").textContent = data.evidence; el("verifier").dataset.visible = "true";
+    }
+
+    function startReplay() {
+      stopReplay(); state.replayPlaying = true; el("replayToggle").textContent = "Pause replay";
+      const delay = 1000 / Number(el("replaySpeed").value);
+      state.replayTimer = setInterval(() => { if (state.selected >= state.steps.length - 1) { stopReplay(); return; } selectStep(state.selected + 1); }, delay);
+    }
+
+    function stopReplay() { if (state.replayTimer) clearInterval(state.replayTimer); state.replayTimer = null; state.replayPlaying = false; if (el("replayToggle")) el("replayToggle").textContent = "Play replay"; }
+    function toggleReplay() { if (!state.steps.length) return; if (state.replayPlaying) stopReplay(); else { if (state.selected >= state.steps.length - 1) selectStep(0); startReplay(); } }
+
+    function updateCompareSelection(changed) {
+      const selected = [...document.querySelectorAll(".compare-select:checked")];
+      if (selected.length > 2) { changed.checked = false; el("announcer").textContent = "Select exactly two runs to compare."; }
+      el("compareButton").disabled = document.querySelectorAll(".compare-select:checked").length !== 2;
+    }
+
+    async function compareSelected() {
+      const ids = [...document.querySelectorAll(".compare-select:checked")].map(input => input.value);
+      if (ids.length !== 2) return;
+      setRunState("loading", `Comparing ${ids[0]} and ${ids[1]} from saved data…`);
+      try {
+        const [left,right] = await Promise.all(ids.map(fetchSavedRun)); renderComparison(left,right);
+        el("comparePanel").dataset.visible = "true"; el("comparePanel").scrollIntoView({ behavior: "auto", block: "start" });
+        setRunState("finished", "Saved-run tier comparison ready. No model calls.");
+      } catch (error) { finishWithError(error); }
+    }
+
+    function renderComparison(left, right) {
+      const wrapper = el("compareTable"), table = document.createElement("table"); table.className = "compare-table";
+      const caption = document.createElement("caption"); caption.className = "sr-only"; caption.textContent = `Per-step tier comparison for ${left.run_id} and ${right.run_id}`;
+      const head = document.createElement("thead"), header = document.createElement("tr"); ["Step / intent",left.run_id,right.run_id,"Difference"].forEach(text => { const cell = document.createElement("th"); cell.scope = "col"; cell.textContent = text; header.append(cell); }); head.append(header);
+      const body = document.createElement("tbody"), length = Math.max(left.steps.length,right.steps.length);
+      for (let index = 0; index < length; index += 1) {
+        const a = left.steps[index], b = right.steps[index], changed = !a || !b || a.tier !== b.tier || Number(a.vlm_ms) !== Number(b.vlm_ms);
+        const row = document.createElement("tr"); if (changed) row.className = "changed";
+        row.append(compareCell(a ? `${a.step} / ${a.intent}` : "—"), compareCell(stepSummary(a)), compareCell(stepSummary(b)), compareCell(changed ? differenceText(a,b) : "Same tier and VLM time", changed)); body.append(row);
+      }
+      table.append(caption,head,body); wrapper.replaceChildren(table);
+    }
+
+    function compareCell(text, highlighted = false) { const cell = document.createElement("td"); cell.textContent = text; if (highlighted) cell.className = "diff-note"; return cell; }
+    function stepSummary(step) { return step ? `${tierLabels[step.tier] || step.tier} · ${Number(step.vlm_ms).toFixed(0)} ms${step.healed ? " · HEALED" : ""}` : "No step"; }
+    function differenceText(a,b) { if (!a || !b) return "Step exists in one run only"; if (a.tier !== b.tier) return `${tierLabels[a.tier] || a.tier} → ${tierLabels[b.tier] || b.tier}`; return `VLM ${Number(a.vlm_ms).toFixed(0)} → ${Number(b.vlm_ms).toFixed(0)} ms`; }
+
+    document.addEventListener("keydown", event => {
+      if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "")) return;
+      if (event.key.toLowerCase() === "r" && !el("runButton").disabled) startRun();
+      if (event.key.toLowerCase() === "j") selectStep(Math.min(state.steps.length - 1,state.selected + 1));
+      if (event.key.toLowerCase() === "k") selectStep(Math.max(0,state.selected - 1));
+    });
+    el("themeToggle").addEventListener("click", toggleTheme);
+    el("runForm").addEventListener("submit", startRun);
+    el("replayToggle").addEventListener("click", toggleReplay);
+    el("replayScrub").addEventListener("input", event => { stopReplay(); selectStep(Number(event.target.value)); });
+    el("replaySpeed").addEventListener("change", () => { if (state.replayPlaying) startReplay(); });
+    el("compareButton").addEventListener("click", compareSelected);
+    el("closeCompare").addEventListener("click", () => { el("comparePanel").dataset.visible = "false"; });
+    applyTheme(document.documentElement.dataset.theme); clearScreen(); loadStories(); loadHistory();
+  </script>
+</body>
+</html>
