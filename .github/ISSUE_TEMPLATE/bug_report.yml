@@ -1,0 +1,34 @@
+name: Bug Report
+description: File a bug report for PixelPilot
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please ensure no API keys or secrets are included in your report.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Run story '...'
+        2. Observe error '...'
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS version, Python version, Chrome version.
+      placeholder: macOS / Linux, Python 3.11+, Chrome version
+    validations:
+      required: true

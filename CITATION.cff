@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use PixelPilot in your research or tooling, please cite it as below."
+authors:
+  - family-names: "Parmar"
+    given-names: "Jyotiraditya"
+title: "PixelPilot: Self-healing Playwright agents using visual grounding"
+version: 0.1.0
+date-released: 2026-11-22
+url: "https://github.com/jyotiraditya/pixelpilot"
