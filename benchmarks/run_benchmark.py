@@ -49,8 +49,8 @@ async def benchmark_fixtures(n: int) -> dict[tuple[str, bool, str], Score]:
 
 
 async def benchmark(
-    n: int,
-) -> tuple[dict[tuple[str, bool], Score], dict[tuple[str, bool, str], Score]]:
+    n: int, run_fixtures: bool = False
+) -> tuple[dict[tuple[str, bool], Score], dict[tuple[str, bool, str], Score] | None]:
     scores: dict[tuple[str, bool], Score] = {}
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome", headless=True)
@@ -90,7 +90,7 @@ async def benchmark(
                 )
                 vlm_results.append(result.passed)
         scores[("PixelPilot VLM-only", mutate)] = Score(sum(vlm_results), len(vlm_results))
-    fixture_scores = await benchmark_fixtures(n)
+    fixture_scores = await benchmark_fixtures(n) if run_fixtures else None
     return scores, fixture_scores
 
 
@@ -163,6 +163,7 @@ def wait_for_demo(timeout: float = 10.0) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=3)
+    parser.add_argument("--fixtures", action="store_true", default=False)
     args = parser.parse_args()
     if args.n < 1:
         parser.error("--n must be at least 1")
@@ -182,7 +183,7 @@ def main() -> None:
     )
     try:
         wait_for_demo()
-        scores, fixture_scores = asyncio.run(benchmark(args.n))
+        scores, fixture_scores = asyncio.run(benchmark(args.n, run_fixtures=args.fixtures))
         print(write_results(scores, args.n, fixture_scores))
     finally:
         server.terminate()

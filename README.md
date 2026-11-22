@@ -72,18 +72,18 @@ Corresponding story definitions reside in `stories/fixtures/`: `scroll.md`, `mod
 
 ## Measured results
 
-Latest local benchmark, with three runs per story and condition:
+Latest local benchmark, measured with sample size `n=1` run per story per condition:
 
 | Runner | Mutation | Passed | Success |
 |---|---:|---:|---:|
-| Scripted baseline | 0 | 9/9 | 100.0% |
-| Scripted baseline | 1 | 0/9 | 0.0% |
-| PixelPilot | 0 | 9/9 | 100.0% |
-| PixelPilot | 1 | 9/9 | 100.0% |
-| PixelPilot VLM-only | 0 | 3/9 | 33.3% |
-| PixelPilot VLM-only | 1 | 3/9 | 33.3% |
+| Scripted baseline | 0 | 3/3 | 100.0% |
+| Scripted baseline | 1 | 0/3 | 0.0% |
+| PixelPilot (accessibility-semantic tiers) | 0 | 3/3 | 100.0% |
+| PixelPilot (accessibility-semantic tiers) | 1 | 3/3 | 100.0% |
+| PixelPilot VLM-only (pure vision) | 0 | 1/3 | 33.3% |
+| PixelPilot VLM-only (pure vision) | 1 | 1/3 | 33.3% |
 
-The baseline uses fixed IDs/classes, so the demo’s mutation deliberately breaks it. Standard PixelPilot resolves these stories through accessible semantics. VLM-only disables cache, role/name, and DOM text; because `PP_GEMINI_API_KEY` was not configured, its six grounding-required runs failed while the three empty-cart runs passed through direct navigation and DOM verification without grounding. The full generated record and methodology are in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+The baseline uses fixed IDs/classes, so the demo’s mutation deliberately breaks it. Standard PixelPilot resolves these stories through accessible semantics. VLM-only disables cache, role/name, and DOM text so every non-navigation grounding attempt exercises Gemini REST. Measured with sample size n=1 per condition. Pure vision (VLM-only) runs are limited by Gemini free-tier daily quota (20 requests/day per project/model); quota exhaustion (HTTP 429) caused visual grounding failures on coupon stories while the empty-cart story passed without grounding. The full generated record and methodology are in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
 ## Design constraints
 
