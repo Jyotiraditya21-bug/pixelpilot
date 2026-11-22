@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 440" width="1280" height="440">
+  <defs>
+    <style>
+      .bg { fill: #f4efe4; }
+      .grid-pattern { stroke: #e6dfd1; stroke-width: 1; }
+      .border-line { stroke: #77786f; stroke-width: 1; }
+      .title { font-family: "Avenir Next Condensed", "Arial Narrow", -apple-system, system-ui, sans-serif; font-weight: 800; font-size: 54px; letter-spacing: 2px; fill: #171813; }
+      .tagline { font-family: "Avenir Next Condensed", "Arial Narrow", -apple-system, system-ui, sans-serif; font-weight: 600; font-size: 22px; fill: #5d6058; letter-spacing: 0.5px; }
+      .mono-meta { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 11px; fill: #5d6058; letter-spacing: 1px; }
+      .badge-bg { fill: #8b3b18; }
+      .badge-text { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; font-weight: 700; fill: #fbf7ee; letter-spacing: 1.5px; }
+      
+      .box-bg { fill: #fbf7ee; stroke: #77786f; stroke-width: 1; rx: 3px; }
+      .box-bg-active { fill: #fbf7ee; stroke: #8b3b18; stroke-width: 1.5; rx: 3px; }
+      .box-title { font-family: "Avenir Next Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 15px; fill: #171813; }
+      .box-desc { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; fill: #5d6058; }
+      
+      .pill-cache { fill: #e2e8f0; stroke: #64748b; }
+      .pill-role { fill: #dcfce7; stroke: #2d6a4f; }
+      .pill-dom { fill: #cffafe; stroke: #0e7490; }
+      .pill-vision { fill: #fef3c7; stroke: #b45309; }
+      .pill-heal { fill: #ecfccb; stroke: #4d7c0f; }
+      
+      .arrow { stroke: #77786f; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .arrow-heal { stroke: #4d7c0f; stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
+      .arrow-head { fill: #77786f; }
+      .arrow-head-heal { fill: #4d7c0f; }
+      
+      .dot-signal { fill: #8b3b18; }
+    </style>
+    <marker id="arr" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 1 1 L 7 4 L 1 7 z" class="arrow-head"/>
+    </marker>
+    <marker id="arr-heal" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 1 1 L 7 4 L 1 7 z" class="arrow-head-heal"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="440" class="bg"/>
+  
+  <!-- Technical Grid Pattern -->
+  <g class="grid-pattern">
+    <line x1="40" y1="0" x2="40" y2="440"/>
+    <line x1="1240" y1="0" x2="1240" y2="440"/>
+    <line x1="0" y1="40" x2="1280" y2="40"/>
+    <line x1="0" y1="400" x2="1280" y2="400"/>
+    
+    <!-- Light subgrid -->
+    <line x1="280" y1="40" x2="280" y2="400" stroke-dasharray="2 4" stroke="#ece4d4"/>
+    <line x1="520" y1="40" x2="520" y2="400" stroke-dasharray="2 4" stroke="#ece4d4"/>
+    <line x1="760" y1="40" x2="760" y2="400" stroke-dasharray="2 4" stroke="#ece4d4"/>
+    <line x1="1000" y1="40" x2="1000" y2="400" stroke-dasharray="2 4" stroke="#ece4d4"/>
+    <line x1="40" y1="180" x2="1240" y2="180" stroke-dasharray="2 4" stroke="#ece4d4"/>
+  </g>
+
+  <!-- Framing Rules -->
+  <rect x="40" y="40" width="1200" height="360" fill="none" class="border-line"/>
+
+  <!-- Top Metadata Bar -->
+  <g transform="translate(64, 72)">
+    <circle cx="4" cy="4" r="3.5" class="dot-signal"/>
+    <text x="16" y="7" class="mono-meta">AUTONOMOUS GROUNDING RUNNER // VERIFIABLE HEALING ENGINE</text>
+    
+    <rect x="1000" y="-8" width="150" height="22" rx="2" class="badge-bg"/>
+    <text x="1075" y="6" text-anchor="middle" class="badge-text">SPEC v0.1.0 // MIT</text>
+  </g>
+
+  <!-- Header Section -->
+  <g transform="translate(64, 125)">
+    <!-- Wordmark -->
+    <text x="0" y="0" class="title">PIXELPILOT</text>
+    
+    <!-- Tagline -->
+    <text x="320" y="-4" class="tagline">Mutation-resistant browser automation for user stories</text>
+    
+    <text x="320" y="24" class="mono-meta">TIERS: CACHE → ROLE+NAME → DOM TEXT → VLM COORDINATES // AUTO-HEALING TO CACHE</text>
+  </g>
+
+  <!-- Horizontal Divider -->
+  <line x1="64" y1="175" x2="1216" y2="175" stroke="#77786f" stroke-width="1"/>
+
+  <!-- Five Locator Tiers Flowchart Section -->
+  <g transform="translate(64, 205)">
+    <text x="0" y="0" class="mono-meta">GROUNDING HIERARCHY &amp; HEAL-AND-CACHE LOOP</text>
+
+    <!-- Step 0: Input Request -->
+    <g transform="translate(0, 20)">
+      <rect x="0" y="0" width="160" height="88" class="box-bg"/>
+      <rect x="8" y="8" width="50" height="18" rx="2" fill="#e2e8f0" stroke="#94a3b8"/>
+      <text x="33" y="20" font-family="monospace" font-size="9" font-weight="700" fill="#334155" text-anchor="middle">STORY</text>
+      <text x="8" y="46" class="box-title">Action Request</text>
+      <text x="8" y="66" class="box-desc">intent: "Place order"</text>
+      <text x="8" y="79" class="box-desc">selector: [none]</text>
+    </g>
+
+    <line x1="160" y1="64" x2="198" y2="64" class="arrow" marker-end="url(#arr)"/>
+
+    <!-- Tier 1: Cache -->
+    <g transform="translate(202, 20)">
+      <rect x="0" y="0" width="180" height="88" class="box-bg"/>
+      <rect x="8" y="8" width="60" height="18" rx="2" class="pill-cache"/>
+      <text x="38" y="20" font-family="monospace" font-size="9" font-weight="700" fill="#1e293b" text-anchor="middle">TIER 1</text>
+      <text x="76" y="21" class="mono-meta">0 ms // ~98%</text>
+      <text x="8" y="46" class="box-title">Healing Cache</text>
+      <text x="8" y="66" class="box-desc">Site + intent lookup</text>
+      <text x="8" y="79" class="box-desc">Fingerprint verify ≥0.72</text>
+    </g>
+
+    <line x1="382" y1="64" x2="420" y2="64" class="arrow" marker-end="url(#arr)"/>
+    <text x="401" y="58" font-family="monospace" font-size="9" fill="#77786f" text-anchor="middle">miss</text>
+
+    <!-- Tier 2: Role + Name -->
+    <g transform="translate(424, 20)">
+      <rect x="0" y="0" width="180" height="88" class="box-bg"/>
+      <rect x="8" y="8" width="60" height="18" rx="2" class="pill-role"/>
+      <text x="38" y="20" font-family="monospace" font-size="9" font-weight="700" fill="#14532d" text-anchor="middle">TIER 2</text>
+      <text x="76" y="21" class="mono-meta">&lt;10 ms // a11y</text>
+      <text x="8" y="46" class="box-title">Role &amp; Name</text>
+      <text x="8" y="66" class="box-desc">Accessibility tree</text>
+      <text x="8" y="79" class="box-desc">get_by_role(button)</text>
+    </g>
+
+    <line x1="604" y1="64" x2="642" y2="64" class="arrow" marker-end="url(#arr)"/>
+    <text x="623" y="58" font-family="monospace" font-size="9" fill="#77786f" text-anchor="middle">miss</text>
+
+    <!-- Tier 3: DOM Text -->
+    <g transform="translate(646, 20)">
+      <rect x="0" y="0" width="180" height="88" class="box-bg"/>
+      <rect x="8" y="8" width="60" height="18" rx="2" class="pill-dom"/>
+      <text x="38" y="20" font-family="monospace" font-size="9" font-weight="700" fill="#155e75" text-anchor="middle">TIER 3</text>
+      <text x="76" y="21" class="mono-meta">&lt;10 ms // text</text>
+      <text x="8" y="46" class="box-title">Visible Text</text>
+      <text x="8" y="66" class="box-desc">DOM text search</text>
+      <text x="8" y="79" class="box-desc">get_by_text(exact=F)</text>
+    </g>
+
+    <line x1="826" y1="64" x2="864" y2="64" class="arrow" marker-end="url(#arr)"/>
+    <text x="845" y="58" font-family="monospace" font-size="9" fill="#77786f" text-anchor="middle">miss</text>
+
+    <!-- Tier 4: Vision BBox -->
+    <g transform="translate(868, 20)">
+      <rect x="0" y="0" width="200" height="88" class="box-bg-active"/>
+      <rect x="8" y="8" width="60" height="18" rx="2" class="pill-vision"/>
+      <text x="38" y="20" font-family="monospace" font-size="9" font-weight="700" fill="#78350f" text-anchor="middle">TIER 4</text>
+      <text x="76" y="21" class="mono-meta">VLM // ~1000ms</text>
+      <text x="8" y="46" class="box-title">Multimodal BBox</text>
+      <text x="8" y="66" class="box-desc">Gemini REST coordinate</text>
+      <text x="8" y="79" class="box-desc">[ymin, xmin, ymax, xmax]</text>
+    </g>
+
+    <!-- Heal & Cache Loop Line -->
+    <path d="M 968 108 L 968 140 L 292 140 L 292 114" class="arrow-heal" marker-end="url(#arr-heal)"/>
+    <g transform="translate(530, 126)">
+      <rect x="0" y="0" width="200" height="24" rx="3" class="pill-heal"/>
+      <text x="100" y="16" font-family="monospace" font-size="10" font-weight="700" fill="#1e3a5f" text-anchor="middle">AUTO-HEAL: CROP FINGERPRINT → CACHE</text>
+    </g>
+
+    <!-- Replan Badge -->
+    <g transform="translate(1088, 48)">
+      <rect x="0" y="0" width="64" height="32" rx="2" fill="#fee2e2" stroke="#dc2626"/>
+      <text x="32" y="15" font-family="monospace" font-size="8" font-weight="700" fill="#991b1b" text-anchor="middle">TIER 5</text>
+      <text x="32" y="25" font-family="monospace" font-size="8" fill="#991b1b" text-anchor="middle">REPLAN</text>
+    </g>
+    <line x1="1068" y1="64" x2="1084" y2="64" class="arrow" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- Technical Corner Marks -->
+  <path d="M 40 48 L 48 48 M 48 40 L 48 48" stroke="#8b3b18" stroke-width="2" fill="none"/>
+  <path d="M 1240 48 L 1232 48 M 1232 40 L 1232 48" stroke="#8b3b18" stroke-width="2" fill="none"/>
+  <path d="M 40 392 L 48 392 M 48 400 L 48 392" stroke="#8b3b18" stroke-width="2" fill="none"/>
+  <path d="M 1240 392 L 1232 392 M 1232 400 L 1232 392" stroke="#8b3b18" stroke-width="2" fill="none"/>
+</svg>
