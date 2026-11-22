@@ -123,10 +123,10 @@ class GeminiClient:
                     continue
                 self.last_status_code = response.status_code
                 if response.status_code not in {429, 500, 502, 503, 504}:
-                    response.raise_for_status()
+                    _check_response_status(response, self.api_key)
                     return parse_json_model(_response_text(response), response_model)
                 if attempt == self.max_retries:
-                    response.raise_for_status()
+                    _check_response_status(response, self.api_key)
                 await self.sleeper(_retry_delay(response, attempt))
         raise RuntimeError("Gemini request loop ended unexpectedly")
 
@@ -147,8 +147,30 @@ class GeminiClient:
         return response.status_code
 
 
+def _check_response_status(response: httpx.Response, api_key: str) -> None:
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        detail = f"Gemini HTTP {response.status_code}"
+        try:
+            body = response.json()
+            if isinstance(body, dict) and "error" in body:
+                error_info = body["error"]
+                if isinstance(error_info, dict) and "message" in error_info:
+                    detail += f": {error_info['message']}"
+        except Exception:
+            if response.text:
+                detail += f": {response.text[:200]}"
+        if api_key:
+            detail = detail.replace(api_key, "[REDACTED]")
+        raise httpx.HTTPStatusError(detail, request=exc.request, response=exc.response) from None
+
+
 def _response_text(response: httpx.Response) -> str:
-    envelope = response.json()
+    try:
+        envelope = response.json()
+    except Exception as exc:
+        raise ValueError(f"Gemini response was not valid JSON: {exc}") from exc
     try:
         candidate = envelope["candidates"][0]
         parts = candidate["content"]["parts"]
@@ -175,8 +197,14 @@ def _retry_delay(response: httpx.Response, attempt: int) -> float:
         data = response.json()
         for detail in data.get("error", {}).get("details", []):
             delay_str = detail.get("retryDelay")
-            if isinstance(delay_str, str) and delay_str.endswith("s"):
-                return min(5.0, max(0.0, float(delay_str[:-1])))
+            if isinstance(delay_str, (int, float)):
+                return min(5.0, max(0.0, float(delay_str)))
+            if isinstance(delay_str, str):
+                cleaned = delay_str.rstrip("s")
+                try:
+                    return min(5.0, max(0.0, float(cleaned)))
+                except ValueError:
+                    pass
     except Exception:
         pass
     return float(min(5.0, 2**attempt))
