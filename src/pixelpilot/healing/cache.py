@@ -30,17 +30,21 @@ class HealingCache:
             )
 
     def get(self, site: str, intent: str) -> CacheEntry | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT locator, fingerprint, successes FROM locator_cache "
-                "WHERE site=? AND intent=?",
-                (site, intent),
-            ).fetchone()
-        if row is None:
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    "SELECT locator, fingerprint, successes FROM locator_cache "
+                    "WHERE site=? AND intent=?",
+                    (site, intent),
+                ).fetchone()
+            if row is None:
+                return None
+            return CacheEntry(
+                site, intent, str(row[0]), Fingerprint.model_validate_json(row[1]), int(row[2])
+            )
+        except Exception:
+            self.delete(site, intent)
             return None
-        return CacheEntry(
-            site, intent, str(row[0]), Fingerprint.model_validate_json(row[1]), int(row[2])
-        )
 
     def put(self, site: str, intent: str, locator: str, fingerprint: Fingerprint) -> None:
         with self._connect() as connection:
@@ -53,10 +57,16 @@ class HealingCache:
             )
 
     def delete(self, site: str, intent: str) -> None:
-        with self._connect() as connection:
-            connection.execute(
-                "DELETE FROM locator_cache WHERE site=? AND intent=?", (site, intent)
-            )
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "DELETE FROM locator_cache WHERE site=? AND intent=?", (site, intent)
+                )
+        except Exception:
+            pass
 
     def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.path)
+        connection = sqlite3.connect(self.path, timeout=10.0)
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("PRAGMA busy_timeout=10000")
+        return connection
