@@ -7,11 +7,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jyotiraditya/pixelpilot/actions/workflows/ci.yml"><img src="https://github.com/jyotiraditya/pixelpilot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://jyotiraditya21-bug.github.io/pixelpilot/"><img src="https://img.shields.io/badge/live_demo-online-brightgreen.svg" alt="Live Demo"></a>
+  <a href="https://github.com/Jyotiraditya21-bug/pixelpilot/actions/workflows/ci.yml"><img src="https://github.com/Jyotiraditya21-bug/pixelpilot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
   <a href="https://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-strict-blue" alt="Checked with mypy"></a>
+</p>
+
+<p align="center">
+  <strong><a href="https://jyotiraditya21-bug.github.io/pixelpilot/">Live Demo Showcase</a></strong> &nbsp;|&nbsp; <strong><a href="https://jyotiraditya21-bug.github.io/pixelpilot/dashboard/">Static Instrument Dashboard</a></strong>
 </p>
 
 <p align="center">
@@ -150,6 +155,7 @@ uv run --no-sync pixelpilot run stories/checkout_valid_coupon.md --mutate
 | `make check` | Runs `ruff` (lint/format), strict `mypy`, and non-VLM `pytest` |
 | `make demo` | Launches local FastAPI mock e-commerce store on `127.0.0.1:8000` |
 | `make ui` | Launches local PixelPilot instrument dashboard on `127.0.0.1:8100` |
+| `make site` | Builds the static showcase site under `site/` for GitHub Pages |
 | `make assets` | Regenerates all documentation screenshots and animated GIF using system Chrome |
 | `make clean` | Removes `runs/` artifacts and Python/tool caches |
 | `pixelpilot run <story> [--mutate]` | Executes a markdown user story in system Chrome |
