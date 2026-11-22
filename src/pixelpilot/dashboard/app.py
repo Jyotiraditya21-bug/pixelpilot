@@ -190,6 +190,15 @@ def create_app(runner_factory: RunnerFactory = Orchestrator) -> FastAPI:
             raise HTTPException(status_code=404, detail="report not found")
         return FileResponse(report_path, media_type="text/html")
 
+    @dashboard_app.get("/api/runs/{run_id}/{filename}")
+    async def run_file(run_id: str, filename: str) -> FileResponse:
+        file_path = (settings.runs_dir / run_id / filename).resolve()
+        run_dir = (settings.runs_dir / run_id).resolve()
+        if run_dir not in file_path.parents or not file_path.is_file():
+            raise HTTPException(status_code=404, detail="file not found")
+        media_type = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else "text/plain"
+        return FileResponse(file_path, media_type=media_type)
+
     return dashboard_app
 
 
