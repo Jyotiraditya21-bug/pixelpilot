@@ -6,6 +6,7 @@ from typing import Any, cast
 from playwright.async_api import Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
+from pixelpilot.config import redact_secrets, validate_navigation_url
 from pixelpilot.models import ActionKind, ActionRequest, ActionResult
 
 
@@ -14,7 +15,12 @@ async def perform_action(page: Page, action: ActionRequest) -> ActionResult:
         if action.kind == ActionKind.NAVIGATE:
             if action.value is None:
                 raise ValueError("navigate requires a URL")
+            validate_navigation_url(action.value)
             await page.goto(action.value, wait_until="domcontentloaded")
+            try:
+                validate_navigation_url(page.url)
+            except ValueError as exc:
+                raise ValueError(f"navigation redirect rejected: {exc}") from exc
         elif action.locator:
             locator = _resolve_cached_locator(page, action.locator)
             await _use_locator(locator, action)
@@ -37,7 +43,9 @@ async def perform_action(page: Page, action: ActionRequest) -> ActionResult:
             raise ValueError("action has no usable target")
         return ActionResult(success=True, detail="action completed")
     except Exception as exc:  # Playwright exposes several runtime exception types.
-        return ActionResult(success=False, detail=f"{type(exc).__name__}: {exc}")
+        typed_value = action.value if action.kind == ActionKind.TYPE else None
+        detail = redact_secrets(f"{type(exc).__name__}: {exc}", typed_value)
+        return ActionResult(success=False, detail=detail)
 
 
 async def _use_locator(locator: object, action: ActionRequest) -> None:

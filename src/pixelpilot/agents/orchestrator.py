@@ -22,7 +22,7 @@ from pixelpilot.browser.actions import (
     perform_action,
 )
 from pixelpilot.browser.session import BrowserSession
-from pixelpilot.config import settings
+from pixelpilot.config import redact_secrets, settings
 from pixelpilot.healing.cache import HealingCache
 from pixelpilot.healing.fingerprint import fingerprint_element
 from pixelpilot.healing.strategies import fingerprint_similarity
@@ -212,7 +212,8 @@ class Orchestrator:
                 last_tier = grounded.tier
                 last_http_status = grounded.http_status
             except (TimeoutError, LookupError, httpx.HTTPError, ValueError, PlaywrightError) as exc:
-                last_detail = _error_detail(exc)
+                sensitive_value = action.value if action.kind == ActionKind.TYPE else None
+                last_detail = _error_detail(exc, sensitive_value)
                 if action.kind != ActionKind.NAVIGATE:
                     last_tier = GroundingTier.VLM
                     last_http_status = self.vision.last_status_code
@@ -337,6 +338,6 @@ def _element_for_cached_locator(
     return None
 
 
-def _error_detail(exc: BaseException) -> str:
+def _error_detail(exc: BaseException, *sensitive_values: str | None) -> str:
     message = str(exc).strip() or repr(exc)
-    return f"{type(exc).__name__}: {message}"
+    return redact_secrets(f"{type(exc).__name__}: {message}", *sensitive_values)
