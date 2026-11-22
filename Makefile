@@ -1,7 +1,7 @@
 UV_CACHE_DIR ?= /private/tmp/pixelpilot-uv-cache
 export UV_CACHE_DIR
 
-.PHONY: check lint type test demo ui up clean assets
+.PHONY: check lint type test demo ui up clean assets site
 check: lint type test
 lint:
 	uv run --no-sync ruff check . && uv run --no-sync ruff format --check .
@@ -15,8 +15,10 @@ ui:
 	uv run --no-sync pixelpilot dashboard
 assets:
 	uv run --no-sync python scripts/capture_assets.py
+site:
+	uv run --no-sync python scripts/build_site.py
 up:
 	docker compose up -d
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
-	rm -rf runs/ .pytest_cache/ .mypy_cache/ .ruff_cache/
+	rm -rf runs/ .pytest_cache/ .mypy_cache/ .ruff_cache/ site/
